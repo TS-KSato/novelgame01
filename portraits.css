@@ -1,0 +1,23 @@
+/* 立ち絵の表示。本編(index.html)と character-preview.html で共有する。
+   位置・縮尺はここだけで指定する。素材の余白が違う場合は --s（縮尺）と data-slot の left で調整する。
+   画像そのものは切り抜き・変形しない（object-fit: contain）。 */
+.portraits{--portrait-top:42px;--portrait-h:128%;position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.portraits.mode-full{--portrait-top:3%;--portrait-h:94%}
+@media(max-height:520px){.portraits.mode-game{--portrait-top:28px}}
+.portrait{--s:1;position:absolute;top:var(--portrait-top);left:50%;height:calc(var(--portrait-h) * var(--s));aspect-ratio:686/1024;margin:0;transform:translateX(-50%);filter:drop-shadow(0 6px 16px #0005);transition:left .35s ease,filter .25s ease}
+.portrait img{display:block;width:100%;height:100%;object-fit:contain;user-select:none}
+.portrait[data-slot=solo]{left:66%}
+.portrait[data-slot=left]{left:40%}
+.portrait[data-slot=right]{left:74%}
+.portraits.mode-full .portrait[data-slot=solo]{left:50%}
+.portraits.mode-full .portrait[data-slot=left]{left:34%}
+.portraits.mode-full .portrait[data-slot=right]{left:66%}
+.portrait.is-speaking{z-index:2}
+.portrait.is-dim{filter:drop-shadow(0 6px 16px #0005) brightness(.66)}
+.portraits.mode-full .portrait{outline:1px dashed #cbb78a99}
+.portrait.enter{animation:portrait-in .3s ease both}
+@keyframes portrait-in{from{opacity:0}}
+/* 選択肢の表示中（#game.in-choice）は、中央の選択肢欄に顔が重ならないよう左右の端へ寄せる。 */
+#game.in-choice .portrait[data-slot=solo]{left:84%}
+#game.in-choice .portrait[data-slot=left]{left:14%}
+#game.in-choice .portrait[data-slot=right]{left:83%}

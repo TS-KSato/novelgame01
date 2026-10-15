@@ -27,7 +27,7 @@
 - 断片収集・関係値・会話履歴・AUTO・既読スキップ。
 - 自動保存と3手動セーブ。保存先は各端末のブラウザです。
 - 背景は画像生成で作成。音はWeb Audioによる合成環境音。
-- 立ち絵・場面別CG・AI生成BGMは未実装。
+- 立ち絵（リーネ・ティア）は実装済み。場面別CG・AI生成BGMは未実装。
 - GitHub Pagesに移行すると、ChatGPTの本人限定アクセスは引き継がれません。通常のPagesはURLを知る人がアクセスできます。
 - GitHub Pagesへのデプロイと実機表示は未検証です。
 
@@ -36,6 +36,10 @@
 - `story.js`：本文、選択肢、関係値、結末条件。
 - `app.js`：ゲームの進行・保存など。
 - `style.css`：表示。
+- `stage.js`：場面ごとの立ち絵の表情・登場指定（配列の添字はlinesの添字、nullは非表示）。
+- `portraits.js` / `portraits.css`：立ち絵の素材定義と表示位置・縮尺。
+- `character-preview.html`：立ち絵の確認ページ（物語は読み込まず、進行・セーブには触れません）。
+- `assets/characters/`：立ち絵。各キャラの表情は`portraits.js`の`PORTRAITS`で定義します。
 - `assets/cathedral.webp`：背景画像。
 
 変更したファイルをmainへコミットすると、再公開されます。

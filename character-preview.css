@@ -1,0 +1,46 @@
+/* 立ち絵の確認ページ専用の見た目。舞台の配置・テキスト欄は style.css と portraits.css をそのまま使う。 */
+#preview{position:relative;height:100svh;min-height:300px;overflow:hidden;background:#0b161d;color:var(--paper)}
+#stage{position:absolute;inset:0;overflow:hidden}
+#preview.bg-dark{background:#0b161d}
+#preview.bg-light{background:#e9e7dc}
+#preview.bg-checker{background-color:#d6d6d2;background-image:conic-gradient(#9b9b97 25%,transparent 0 50%,#9b9b97 0 75%,transparent 0);background-size:24px 24px}
+#preview:not(.bg-game) .scenery,#preview:not(.bg-game) .veil{display:none}
+#preview.mode-full #dialogue,#preview.mode-full .chapter{display:none}
+#preview.mode-full .portrait{filter:none}
+#preview.bg-light .portrait{filter:drop-shadow(0 6px 16px #0003)}
+#preview.bg-light .portrait.is-dim{filter:drop-shadow(0 6px 16px #0003) brightness(.8)}
+#preview.bg-light #stage .chapter{color:#2b2f2c}
+#preview:not(.bg-game) #game .chapter{text-shadow:none}
+#game{background:none}
+#hint{position:absolute;left:0;right:0;top:52px;text-align:center;font:11px sans-serif;color:#d9c79c;text-shadow:0 1px 6px #000;pointer-events:none;z-index:6}
+@media(orientation:landscape){#hint{display:none}}
+#toggle{position:absolute;top:12px;right:14px;z-index:30;padding:8px 12px;border:1px solid #8c8266;background:#0d202aee;font:12px sans-serif;letter-spacing:.08em;color:var(--paper)}
+#missing{position:absolute;left:50%;top:44px;transform:translateX(-50%);z-index:40;max-width:82%;padding:12px 18px;background:#3a0f12f2;border:1px solid #d86d6d;font:12px/1.7 sans-serif;color:#ffe2df;text-align:center}
+#panel{position:absolute;left:0;right:0;bottom:0;z-index:35;max-height:64svh;overflow:auto;padding:14px 18px 26px;background:#0e1b24f7;border-top:1px solid #8f8264;font:12px/1.6 system-ui,sans-serif;color:var(--paper);-webkit-overflow-scrolling:touch}
+.panel-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #b8a87a45;padding-bottom:8px;margin-bottom:10px}
+.panel-head h1{margin:0;font:400 16px Georgia,serif;letter-spacing:.14em}
+#close{font-size:24px;color:var(--gold);padding:0 6px}
+.group{margin:14px 0}
+.group h2{margin:0 0 8px;font:400 12px Georgia,serif;color:var(--gold);letter-spacing:.1em}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button,.chips button{padding:8px 11px;border:1px solid #8c8266;font:12px sans-serif;min-height:36px}
+.seg button[aria-pressed=true],.chips button[aria-pressed=true]{background:#c9b88733;border-color:var(--gold);color:#f3ead0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips small{display:block;font-size:10px;color:var(--muted)}
+.check{display:flex;align-items:center;gap:8px;margin-top:10px}
+.info{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font:11px/1.6 monospace;word-break:break-all}
+.info dt{color:var(--muted)}
+.info dd{margin:0}
+.assets{width:100%;border-collapse:collapse;font:11px/1.5 monospace}
+.assets th,.assets td{text-align:left;padding:5px 4px;border-bottom:1px solid #ffffff14;vertical-align:top}
+.assets th{color:var(--gold);font-weight:400;font-family:sans-serif}
+.assets td:first-child,.assets td:last-child{white-space:nowrap}
+.assets td:nth-child(2){word-break:break-all}
+.assets .ok{color:#a9d7a0}
+.assets .ng{color:#ff9d93;font-weight:700}
+.assets .unk{color:var(--muted)}
+/* 広い画面では設定を右側の列に出し、舞台は残りの幅で本編と同じ比率に保つ。 */
+@media(min-width:800px) and (min-height:600px){
+ #preview.panel-open #stage{right:380px}
+ #panel{top:0;bottom:0;left:auto;right:0;width:380px;max-height:none;border-top:0;border-left:1px solid #8f8264}
+}
