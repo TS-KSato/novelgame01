@@ -8,13 +8,19 @@ const PORTRAITS={
  serion:{name:'セリオン',dir:'assets/characters/serion/',expressions:[['normal','通常'],['curious','好奇心・ギャグ（大きく崩れる）'],['thinking','思考'],['amused','控えめな笑み'],['serious','真剣'],['sad','悲しみ']]},
  gares:{name:'ガレス',dir:'assets/characters/gares/',expressions:[['normal','通常・記録の説明'],['serious','真剣・責任を伴う判断'],['apologetic','謝罪・過去の判断の訂正'],['smile','安堵・信頼']]},
  tia:{name:'ティア',dir:'assets/characters/tia/',expressions:[['normal','通常'],['happy','満面の笑み・両拳を上げる'],['annoyed','不機嫌・腕組み'],['embarrassed','照れ隠し・後頭部に手'],['serious','真剣・仲間を守る構え'],['sad','悲しみ・肩を落とす'],['frustrated','悔しがる・ギャグ（大きく崩れる）']]},
- yuri:{name:'ユーリ',dir:'assets/characters/yuri/',expressions:[['normal','通常・穏やかな説明'],['nostalgic','懐かしさ・共有した過去'],['sad','失われる記憶への悲しみ'],['serious','真実を伝える・静かな決意']]}
+ yuri:{name:'ユーリ',dir:'assets/characters/yuri/',expressions:[['normal','通常・穏やかな説明'],['nostalgic','懐かしさ・共有した過去'],['sad','失われる記憶への悲しみ'],['serious','真実を伝える・静かな決意']]},
+ neia:{name:'ネイア',dir:'assets/characters/neia/',expressions:[['normal','通常・警戒を残す証言'],['angry','怒り・追及'],['sad','薄れる記憶への悲しみ'],['trust','警戒を解き、信頼・承認']]}
 };
 // 表情ごとの位置補正。素材の足元の高さが通常と違う場合に、縦方向だけずらして接地位置を揃える（画像は変形しない）。
 // 値は立ち絵の高さに対する%。正の値で下へ移動する。
 const PORTRAIT_ADJUST={
  'serion/curious':{dy:2.83},
- 'tia/frustrated':{dy:1.17}
+ 'tia/frustrated':{dy:1.17},
+ // ネイアは画像の高さがほぼ目一杯で、足元がほかの立ち絵より約1%低い。全表情で同じ量だけ上げ、接地位置を揃える。
+ 'neia/normal':{dy:-1.0},
+ 'neia/angry':{dy:-1.0},
+ 'neia/sad':{dy:-1.0},
+ 'neia/trust':{dy:-1.0}
 };
 // 同時表示する人数に応じた配置名。1人は solo、2人は left/right、3人は left3/center3/right3。
 function portraitSlots(chars){

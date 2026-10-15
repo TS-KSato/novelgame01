@@ -16,6 +16,8 @@
 .portrait[data-slot=left3]{left:16%}
 .portrait[data-slot=center3]{left:50%}
 .portrait[data-slot=right3]{left:84%}
+/* ネイアは横幅が大きいので、3人並びの右端だけ少し内側へ（尾の先が画面外に出ないようにする）。 */
+.portrait[data-char=neia][data-slot=right3]{left:80%}
 
 .portraits.mode-full .portrait[data-slot=solo]{left:50%}
 .portraits.mode-full .portrait[data-slot=left]{left:34%}
@@ -34,3 +36,5 @@
 #game.in-choice .portrait[data-slot=solo]{left:84%}
 #game.in-choice .portrait[data-slot=left]{left:14%}
 #game.in-choice .portrait[data-slot=right]{left:83%}
+/* ネイアは横幅が大きく、84%では右端で腕と尾が切れるため、選択肢の表示中だけ少し内側に寄せる（縮尺は変えない）。 */
+#game.in-choice .portrait[data-char=neia][data-slot=solo]{left:80%}

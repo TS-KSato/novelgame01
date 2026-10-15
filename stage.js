@@ -33,7 +33,7 @@ const STAGE={
   riene:['worried','sad','worried','sad','sad','sad','sad','crying','crying','crying','crying','crying','crying'],
   tia:[null,null,null,null,null,null,null,null,'serious','serious','embarrassed','embarrassed','serious']
  },
- end_harmony:{riene:['worried','worried','sad','sad','sad','sad','sad']},
+ end_harmony:{riene:['worried','worried','sad','sad','sad','sad','sad'],neia:[null,null,'sad',null,null,null,null]},
  end_sacrifice:{tia:['serious','serious','serious','serious','sad',null,null]},
  end_collapse:{serion:[null,'sad',null,null,null]},
  // 3人が並ぶ（ティアの台詞、セリオンの台詞）。
@@ -44,8 +44,14 @@ const STAGE={
  },
  end_god:{
   riene:['worried','worried','worried','worried','worried','worried','worried','worried','sad','sad','sad','sad','crying','crying'],
-  serion:[null,null,null,null,null,null,'thinking']
- }
+  serion:[null,null,null,null,null,null,'thinking'],
+  // ネイアは「初めから知っていたように目を伏せた」（相手の選択を承認する）。
+  neia:[null,null,null,null,null,null,null,'trust']
+ },
+ // ネイアが霧の向こうから現れ、剣を抜く（追及と敵意）。
+ lonely:{neia:[null,null,null,'angry']},
+ // ネイアは登場。0行目は警戒を残して現れる、1〜3行目はヴァルゼンを殺した相手への怒りと追及、4行目は記憶の薄れる悲しみ。
+ neia:{neia:['normal','angry','angry','angry','sad']}
 };
 
 // 場面・ページに表示する立ち絵を返す。同時に出る人数に応じて配置名を決める（portraitSlots）。
