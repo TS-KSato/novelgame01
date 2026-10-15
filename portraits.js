@@ -6,6 +6,7 @@ const PORTRAIT_SIZE={w:686,h:1024};
 const PORTRAITS={
  riene:{name:'リーネ',dir:'assets/characters/riene/',expressions:[['normal','通常'],['happy','喜び'],['worried','心配'],['sad','悲しみ'],['angry','怒り'],['crying','涙']]},
  serion:{name:'セリオン',dir:'assets/characters/serion/',expressions:[['normal','通常'],['curious','好奇心・ギャグ（大きく崩れる）'],['thinking','思考'],['amused','控えめな笑み'],['serious','真剣'],['sad','悲しみ']]},
+ gares:{name:'ガレス',dir:'assets/characters/gares/',expressions:[['normal','通常・記録の説明'],['serious','真剣・責任を伴う判断'],['apologetic','謝罪・過去の判断の訂正'],['smile','安堵・信頼']]},
  tia:{name:'ティア',dir:'assets/characters/tia/',expressions:[['normal','通常'],['happy','満面の笑み・両拳を上げる'],['annoyed','不機嫌・腕組み'],['embarrassed','照れ隠し・後頭部に手'],['serious','真剣・仲間を守る構え'],['sad','悲しみ・肩を落とす'],['frustrated','悔しがる・ギャグ（大きく崩れる）']]}
 };
 // 表情ごとの位置補正。素材の足元の高さが通常と違う場合に、縦方向だけずらして接地位置を揃える（画像は変形しない）。

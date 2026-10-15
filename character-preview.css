@@ -44,3 +44,5 @@
  #preview.panel-open #stage{right:380px}
  #panel{top:0;bottom:0;left:auto;right:0;width:380px;max-height:none;border-top:0;border-left:1px solid #8f8264}
 }
+
+.note{margin:10px 0 6px;color:var(--muted);font-size:11px}

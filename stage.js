@@ -12,7 +12,9 @@ const STAGE={
  // ティアは冒頭の「獣人の少女」から登場し、台詞の後も場面に残る。
  // 勝負に負けて鍋が焦げた（arena[4]）場面で悔しがる差分を使う。
  arena:{riene:['worried','worried','normal','happy','happy'],tia:['annoyed','annoyed','embarrassed','annoyed','frustrated']},
- court:{riene:['normal','normal','worried','worried']},
+ // ガレスは王都の場面に実際にいる（0〜3行目）。過去の判断を訂正する行は apologetic、責任ある判断の行は serious。
+ // 記録の説明（2行目）は通常。smile は本文に安堵・信頼が読み取れる行がないため未使用。
+ court:{riene:['normal','normal','worried','worried'],gares:['normal','apologetic','normal','serious']},
  border:{riene:['normal','normal','normal','sad']},
  // セリオンが、規則ではないと真剣に説明する場面（races[2]）で真剣な表情を使う。
  races:{riene:['worried','worried','worried','worried','sad'],serion:[null,null,'serious','thinking',null]},

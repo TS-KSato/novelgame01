@@ -3,7 +3,9 @@
 // 物語の進行・セーブ・既読情報には触れない（localStorage を使わず、story.js も読まない）。
 const DEFAULT_CHARACTER='riene',DEFAULT_EXPRESSION='normal';
 const $=id=>document.getElementById(id);
-const state={char:DEFAULT_CHARACTER,expr:{},duo:false,mode:'game',bg:'game',speaker:'char'};
+const state={char:DEFAULT_CHARACTER,expr:{},duo:false,group:['riene','tia'],mode:'game',bg:'game',speaker:'char'};
+// 並列表示に入れる人物。同時に表示できるのは3人まで（本編の配置と同じ上限）。4人目を選ぶと最も前に選んだ人物が外れる。
+const GROUP_MAX=3;
 for(const char of Object.keys(PORTRAITS))state.expr[char]=DEFAULT_EXPRESSION;
 const SAMPLE_NARRATION='　';
 
@@ -56,8 +58,13 @@ function headOf(path){
 }
 
 // 並列表示のときは全キャラを、通常は選択中のキャラ1人を表示する。配置名は本編と同じ portraitSlots で決める。
+function toggleGroup(char){
+ const i=state.group.indexOf(char);
+ if(i>=0){if(state.group.length>1)state.group.splice(i,1);}
+ else{state.group.push(char);if(state.group.length>GROUP_MAX)state.group.shift();}
+}
 function activeItems(){
- const chars=state.duo?Object.keys(PORTRAITS):[state.char];
+ const chars=state.duo?Object.keys(PORTRAITS).filter(c=>state.group.includes(c)):[state.char];
  const slots=portraitSlots(chars);
  return chars.map(char=>({char,expr:state.expr[char],slot:slots[char]}));
 }
@@ -70,8 +77,14 @@ function buildControls(){
  const charSeg=$('charSeg');
  for(const [char,def] of Object.entries(PORTRAITS)){
   const b=document.createElement('button');b.type='button';b.dataset.value=char;b.textContent=def.name;
-  b.onclick=()=>{state.char=char;render();};
+  b.onclick=()=>{state.char=char;if(state.duo&&!state.group.includes(char))toggleGroup(char);render();};
   charSeg.append(b);
+ }
+ const groupSeg=$('groupSeg');
+ for(const [char,def] of Object.entries(PORTRAITS)){
+  const b=document.createElement('button');b.type='button';b.dataset.value=char;b.textContent=def.name;
+  b.onclick=()=>{toggleGroup(char);render();};
+  groupSeg.append(b);
  }
  $('duo').onchange=e=>{state.duo=e.target.checked;render();};
  for(const seg of ['modeSeg','bgSeg','speakerSeg']){
@@ -114,6 +127,7 @@ function render(){
  $('speaker').textContent=speakerName||SAMPLE_NARRATION;
  $('label').textContent=PORTRAITS[state.char].name;
  setPressed($('charSeg'),'button',b=>b.dataset.value===state.char);
+ setPressed($('groupSeg'),'button',b=>state.group.includes(b.dataset.value));
  $('duo').checked=state.duo;
  setPressed($('modeSeg'),'button',b=>b.dataset.value===state.mode);
  setPressed($('bgSeg'),'button',b=>b.dataset.value===state.bg);
