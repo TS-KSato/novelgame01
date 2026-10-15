@@ -28,15 +28,23 @@ function probe(path){
  }));
  return probes.get(path);
 }
-// 透過率。キャンバスに描けない環境（file:// など）では null を返す。
+// 透過の内訳。完全透明（α=0）と半透明（0<α<255）を分けて数える。キャンバスに描けない環境（file:// など）では null。
 function transparentRatio(img){
  try{
   const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;
   const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0);
-  const d=ctx.getImageData(0,0,c.width,c.height).data;let n=0;
-  for(let i=3;i<d.length;i+=4)if(d[i]<255)n++;
-  return n/(d.length/4);
+  const d=ctx.getImageData(0,0,c.width,c.height).data;let zero=0,partial=0;
+  for(let i=3;i<d.length;i+=4){if(d[i]===0)zero++;else if(d[i]<255)partial++;}
+  const total=d.length/4;
+  return {zero:zero/total,partial:partial/total};
  }catch{return null;}
+}
+// 基準（686×1024）と寸法が違っても、縦横比が同じなら表示は同じ比率で縮小される。
+function sizeNote(r){
+ const same=r.w===PORTRAIT_SIZE.w&&r.h===PORTRAIT_SIZE.h;
+ if(same)return '（規定どおり）';
+ const ratioOk=Math.abs(r.w/r.h-PORTRAIT_SIZE.w/PORTRAIT_SIZE.h)<0.005;
+ return ratioOk?'（基準と縦横比が同じ。表示は同じ比率で縮小）':'（基準 '+PORTRAIT_SIZE.w+' × '+PORTRAIT_SIZE.h+' と縦横比が違います）';
 }
 // 配信ファイルの HTTP 状態と大きさを HEAD で確認する。
 const heads=new Map();
@@ -132,8 +140,8 @@ async function updateStatus(){
    const head=await headOf(path);
    rows.push(['参照パス',path]);
    rows.push(['読み込み',failed?'失敗（画像が無い、または壊れています）':'成功']);
-   rows.push(['寸法',r.ok?r.w+' × '+r.h+' px'+(r.w===PORTRAIT_SIZE.w&&r.h===PORTRAIT_SIZE.h?'（規定どおり）':'（規定 '+PORTRAIT_SIZE.w+' × '+PORTRAIT_SIZE.h+' と違います）'):'-']);
-   rows.push(['透過',r.ok&&!failed?(r.transparent===null?'未確認（この環境では画素を読めません）':(r.transparent*100).toFixed(1)+'% が透明'):'-']);
+   rows.push(['寸法',r.ok?r.w+' × '+r.h+' px'+sizeNote(r):'-']);
+   rows.push(['透過',r.ok&&!failed?(r.transparent===null?'未確認（この環境では画素を読めません）':'完全透明 '+(r.transparent.zero*100).toFixed(1)+'%・半透明 '+(r.transparent.partial*100).toFixed(1)+'%'):'-']);
    rows.push(['配信',head.status===null?'未確認':'HTTP '+head.status+(head.size?' / '+(head.size/1024).toFixed(0)+' KB':'')]);
   }
  }

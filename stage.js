@@ -14,7 +14,8 @@ const STAGE={
  arena:{riene:['worried','worried','normal','happy','happy'],tia:['annoyed','annoyed','embarrassed','annoyed','frustrated']},
  court:{riene:['normal','normal','worried','worried']},
  border:{riene:['normal','normal','normal','sad']},
- races:{riene:['worried','worried','worried','worried','sad'],serion:[null,null,'thinking','thinking',null]},
+ // セリオンが、規則ではないと真剣に説明する場面（races[2]）で真剣な表情を使う。
+ races:{riene:['worried','worried','worried','worried','sad'],serion:[null,null,'serious','thinking',null]},
  neia:{riene:['worried','worried','sad','sad','sad']},
  // ティアは台詞のページだけ登場する。セリオンは台詞のページだけ登場する。
  prayer:{riene:['worried','normal','normal','happy','normal'],serion:[null,'thinking',null,null,null],tia:[null,null,null,'serious','normal']},
