@@ -71,9 +71,15 @@ function updatePortraits(node,page,speaker){
  renderPortraits(host,items,speaker);
  const game=document.getElementById('game');
  game.classList.toggle('has-portrait',items.length>0);
- game.classList.remove('in-choice');
+ game.classList.remove('in-choice','choice-left');
 }
 // 選択肢の表示中は、立ち絵を左右の端へ寄せて選択肢の下に顔が隠れないようにする（縮尺・接地位置は変えない）。
-function setPortraitChoice(on){document.getElementById('game').classList.toggle('in-choice',on);}
+// ネイアが単独で出る選択肢の場面だけ、選択肢の欄を左側へ寄せ、ネイアの顔と角を見せる（他の場面の配置は変えない）。
+function setPortraitChoice(on){
+ const game=document.getElementById('game');
+ const items=on?stagePortraits(st.node,st.line):[];
+ game.classList.toggle('in-choice',on);
+ game.classList.toggle('choice-left',on&&items.length===1&&items[0].char==='neia');
+}
 
 if(typeof module!=='undefined')module.exports={STAGE,stagePortraits};

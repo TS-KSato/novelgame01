@@ -38,3 +38,7 @@
 #game.in-choice .portrait[data-slot=right]{left:83%}
 /* ネイアは横幅が大きく、84%では右端で腕と尾が切れるため、選択肢の表示中だけ少し内側に寄せる（縮尺は変えない）。 */
 #game.in-choice .portrait[data-char=neia][data-slot=solo]{left:80%}
+
+/* 選択肢の欄を左へ寄せた場面（#game.choice-left、ネイアの単独表示のみ）。ネイアは本来の位置（66%）に戻す。 */
+#game.choice-left #choices{left:6%;right:auto;width:42%}
+#game.in-choice.choice-left .portrait[data-char=neia][data-slot=solo]{left:66%}
