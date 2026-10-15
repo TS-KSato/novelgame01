@@ -15,7 +15,9 @@ const STAGE={
  // ガレスは王都の場面に実際にいる（0〜3行目）。過去の判断を訂正する行は apologetic、責任ある判断の行は serious。
  // 記録の説明（2行目）は通常。smile は本文に安堵・信頼が読み取れる行がないため未使用。
  court:{riene:['normal','normal','worried','worried'],gares:['normal','apologetic','normal','serious']},
- border:{riene:['normal','normal','normal','sad']},
+ // ユーリは辺境の家に実際にいる（0〜3行目）。0行目は穏やかな様子、1行目は共有した過去への懐かしさ、
+ // 2行目は失われる記憶への悲しみ、3行目は「災厄にも名前があった」と真実を伝える真剣な表情。
+ border:{riene:['normal','normal','normal','sad'],yuri:['normal','nostalgic','sad','serious']},
  // セリオンが、規則ではないと真剣に説明する場面（races[2]）で真剣な表情を使う。
  races:{riene:['worried','worried','worried','worried','sad'],serion:[null,null,'serious','thinking',null]},
  neia:{riene:['worried','worried','sad','sad','sad']},
