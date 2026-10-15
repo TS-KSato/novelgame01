@@ -2,10 +2,25 @@
 // 立ち絵の素材定義と表示処理。本編（stage.js / app.js）と character-preview.html で共有する。
 // 表示位置・縮尺は portraits.css で指定する。ここでは素材の場所と表情の一覧、表示の切り替えだけを扱う。
 const PORTRAIT_SIZE={w:686,h:1024};
+// 表示順。同時に2人以上出るとき、この順で左から並べる（同じ人物が常に同じ側に来る）。
 const PORTRAITS={
  riene:{name:'リーネ',dir:'assets/characters/riene/',expressions:[['normal','通常'],['happy','喜び'],['worried','心配'],['sad','悲しみ'],['angry','怒り'],['crying','涙']]},
- tia:{name:'ティア',dir:'assets/characters/tia/',expressions:[['normal','通常'],['happy','満面の笑み・両拳を上げる'],['annoyed','不機嫌・腕組み'],['embarrassed','照れ隠し・後頭部に手'],['serious','真剣・仲間を守る構え'],['sad','悲しみ・肩を落とす']]}
+ serion:{name:'セリオン',dir:'assets/characters/serion/',expressions:[['normal','通常'],['curious','好奇心・ギャグ（大きく崩れる）'],['thinking','思考'],['amused','控えめな笑み'],['serious','真剣'],['sad','悲しみ']]},
+ tia:{name:'ティア',dir:'assets/characters/tia/',expressions:[['normal','通常'],['happy','満面の笑み・両拳を上げる'],['annoyed','不機嫌・腕組み'],['embarrassed','照れ隠し・後頭部に手'],['serious','真剣・仲間を守る構え'],['sad','悲しみ・肩を落とす'],['frustrated','悔しがる・ギャグ（大きく崩れる）']]}
 };
+// 表情ごとの位置補正。素材の足元の高さが通常と違う場合に、縦方向だけずらして接地位置を揃える（画像は変形しない）。
+// 値は立ち絵の高さに対する%。正の値で下へ移動する。
+const PORTRAIT_ADJUST={
+ 'serion/curious':{dy:2.83},
+ 'tia/frustrated':{dy:1.17}
+};
+// 同時表示する人数に応じた配置名。1人は solo、2人は left/right、3人は left3/center3/right3。
+function portraitSlots(chars){
+ const order=Object.keys(PORTRAITS).filter(c=>chars.includes(c));
+ const names=order.length===1?['solo']:order.length===2?['left','right']:['left3','center3','right3'];
+ if(order.length>3)throw new Error('同時に表示できるのは3人までです');
+ return Object.fromEntries(order.map((c,i)=>[c,names[i]]));
+}
 const portraitPath=(char,expr)=>PORTRAITS[char].dir+expr+'.png';
 const isPortraitExpression=(char,expr)=>Object.hasOwn(PORTRAITS,char)&&PORTRAITS[char].expressions.some(([id])=>id===expr);
 
@@ -22,12 +37,13 @@ function createPortraitLayer(host){
  return host;
 }
 
-// 読み込み済みの表情は先に取得しておく。失敗しても文章送りは止めない（呼び出し側で待たない）。
+// 表示予定の表情だけ先に取得しておく。失敗しても文章送りは止めない（呼び出し側で待たない）。
 const portraitPreloaded=new Set();
-function preloadPortraits(char){
- if(portraitPreloaded.has(char))return;
- portraitPreloaded.add(char);
- for(const [expr] of PORTRAITS[char].expressions)new Image().src=portraitPath(char,expr);
+function preloadPortrait(char,expr){
+ const src=portraitPath(char,expr);
+ if(portraitPreloaded.has(src))return;
+ portraitPreloaded.add(src);
+ new Image().src=src;
 }
 
 function reveal(fig){
@@ -59,10 +75,13 @@ function renderPortraits(host,items,speaker=''){
   if(!item){fig.hidden=true;fig.dataset.want='';fig.dataset.state='empty';continue;}
   const speaking=speaker!==''&&speaker===PORTRAITS[char].name;
   fig.dataset.slot=item.slot;
+  fig.dataset.expr=item.expr;
+  const adjust=PORTRAIT_ADJUST[char+'/'+item.expr];
+  fig.style.setProperty('--dy',adjust?adjust.dy+'%':'0%');
   fig.classList.toggle('is-speaking',speaking);
   fig.classList.toggle('is-dim',speaker!==''&&!speaking);
   showPortrait(fig,char,item.expr);
  }
 }
 
-if(typeof module!=='undefined')module.exports={PORTRAITS,PORTRAIT_SIZE,portraitPath,isPortraitExpression};
+if(typeof module!=='undefined')module.exports={PORTRAITS,PORTRAIT_SIZE,PORTRAIT_ADJUST,portraitPath,isPortraitExpression,portraitSlots};

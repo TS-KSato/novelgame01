@@ -47,9 +47,11 @@ function headOf(path){
  return heads.get(path);
 }
 
+// 並列表示のときは全キャラを、通常は選択中のキャラ1人を表示する。配置名は本編と同じ portraitSlots で決める。
 function activeItems(){
  const chars=state.duo?Object.keys(PORTRAITS):[state.char];
- return chars.map(char=>({char,expr:state.expr[char],slot:state.duo?(char==='riene'?'left':'right'):'solo'}));
+ const slots=portraitSlots(chars);
+ return chars.map(char=>({char,expr:state.expr[char],slot:slots[char]}));
 }
 
 function setPressed(container,selector,match){

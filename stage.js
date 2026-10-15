@@ -3,20 +3,24 @@
 // 表情名は portraits.js の PORTRAITS に定義したもの。null・未指定・配列の範囲外は非表示。
 // 人物が本文に登場する場面・ページだけを指定する。登場前、またはその人物が描かれていないページは非表示。
 // 登場から退場まで連続して表示し、途中で消える・出るのは本文に人物が現れたとき・消えたときだけにする。
+// 話者（台詞の人物）は必ず表示されるように指定する。
 const STAGE={
- rescue:{riene:[null,null,'worried','worried','normal']},
+ rescue:{riene:[null,'worried','worried','worried','normal']},
  brother:{riene:['normal','normal','normal','sad','sad']},
- scholar:{riene:['normal','normal','normal','normal','normal']},
+ // セリオンは学者として登場する。「説明してください」は未知の言葉へ食いつく場面なので好奇心の差分を使う。
+ scholar:{serion:['thinking','normal','amused','curious','thinking']},
  // ティアは冒頭の「獣人の少女」から登場し、台詞の後も場面に残る。
- arena:{riene:['worried','worried','normal','happy','happy'],tia:['annoyed','annoyed','embarrassed','annoyed','serious']},
+ // 勝負に負けて鍋が焦げた（arena[4]）場面で悔しがる差分を使う。
+ arena:{riene:['worried','worried','normal','happy','happy'],tia:['annoyed','annoyed','embarrassed','annoyed','frustrated']},
  court:{riene:['normal','normal','worried','worried']},
  border:{riene:['normal','normal','normal','sad']},
- races:{riene:['worried','worried','worried','worried','sad']},
+ races:{riene:['worried','worried','worried','worried','sad'],serion:[null,null,'thinking','thinking',null]},
  neia:{riene:['worried','worried','sad','sad','sad']},
- // ティアは台詞のページだけ登場する。
- prayer:{riene:['worried','normal','normal','happy','normal'],tia:[null,null,null,'serious','normal']},
+ // ティアは台詞のページだけ登場する。セリオンは台詞のページだけ登場する。
+ prayer:{riene:['worried','normal','normal','happy','normal'],serion:[null,'thinking',null,null,null],tia:[null,null,null,'serious','normal']},
  confession:{riene:['worried','worried','worried','angry','angry','angry']},
- resolve:{riene:['angry','sad','normal','normal'],tia:[null,'serious','normal','normal']},
+ // 3人が並ぶのは2行目（セリオンの台詞）まで。選択肢が出る最終行は中央を空けるため、セリオンは外す。
+ resolve:{riene:['angry','sad','normal','normal'],tia:[null,'serious','normal','normal'],serion:[null,null,'amused',null]},
  agreement:{riene:['worried','normal','normal']},
  alone:{riene:['worried','worried']},
  // ティアは「前へ出た」ページから登場する。
@@ -25,24 +29,34 @@ const STAGE={
   tia:[null,null,null,null,null,null,null,null,'serious','serious','embarrassed','embarrassed','serious']
  },
  end_harmony:{riene:['worried','worried','sad','sad','sad','sad','sad']},
- end_true:{riene:['sad','sad','normal','normal','sad','crying','crying','crying','normal','normal'],tia:[null,null,null,null,null,null,null,'happy',null,null]},
- end_god:{riene:['worried','worried','worried','worried','worried','worried','worried','worried','sad','sad','sad','sad','crying','crying']},
- end_sacrifice:{tia:['serious','serious','serious','serious','sad',null,null]}
+ end_sacrifice:{tia:['serious','serious','serious','serious','sad',null,null]},
+ end_collapse:{serion:[null,'sad',null,null,null]},
+ // 3人が並ぶ（ティアの台詞、セリオンの台詞）。
+ end_true:{
+  riene:['sad','sad','normal','normal','sad','crying','crying','crying','normal','normal'],
+  tia:[null,null,null,null,null,null,'happy','normal',null,null],
+  serion:[null,null,null,null,null,null,null,'amused',null,null]
+ },
+ end_god:{
+  riene:['worried','worried','worried','worried','worried','worried','worried','worried','sad','sad','sad','sad','crying','crying'],
+  serion:[null,null,null,null,null,null,'thinking']
+ }
 };
 
-// 場面・ページに表示する立ち絵を返す。2人いるときはリーネを左、ティアを右に置く。
+// 場面・ページに表示する立ち絵を返す。同時に出る人数に応じて配置名を決める（portraitSlots）。
 function stagePortraits(node,page){
  const picked=Object.keys(PORTRAITS).map(char=>{
   const expr=STAGE[node]?.[char]?.[page];
   return expr&&isPortraitExpression(char,expr)?{char,expr}:null;
  }).filter(Boolean);
- return picked.map(item=>({...item,slot:picked.length===1?'solo':item.char==='riene'?'left':'right'}));
+ const slots=portraitSlots(picked.map(i=>i.char));
+ return picked.map(item=>({...item,slot:slots[item.char]}));
 }
 
 function updatePortraits(node,page,speaker){
  const host=document.getElementById('portraits'),items=stagePortraits(node,page);
  if(!host.children.length)createPortraitLayer(host);
- if(items.length)items.forEach(i=>preloadPortraits(i.char));
+ items.forEach(i=>preloadPortrait(i.char,i.expr));
  renderPortraits(host,items,speaker);
  const game=document.getElementById('game');
  game.classList.toggle('has-portrait',items.length>0);
