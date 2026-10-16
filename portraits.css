@@ -20,6 +20,8 @@
 .portrait[data-char=neia][data-slot=right3]{left:80%}
 /* カイルも横幅のあるマントのため、3人並びの右端は少し内側へ（マントの端が画面外に出ないようにする）。 */
 .portrait[data-char=kyle][data-slot=right3]{left:80%}
+/* ティアは尻尾が右へ長いため、3人並びの右端だけ少し内側へ（尻尾の先が画面外に出ないようにする）。表情では位置を変えない。 */
+.portrait[data-char=tia][data-slot=right3]{left:80%}
 
 .portraits.mode-full .portrait[data-slot=solo]{left:50%}
 .portraits.mode-full .portrait[data-slot=left]{left:34%}

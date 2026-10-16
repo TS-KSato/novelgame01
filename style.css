@@ -80,3 +80,12 @@ body.playing #appGuide{display:none}
 @media(max-height:520px){
  #modal .modal-top{margin:-14px -20px 8px;padding:14px 20px 8px}
 }
+/* 序章の演出（prologue だけ。body.dream-on）。周辺減光と背景・立ち絵の弱いぼかしは静的。粒状ノイズは入場時だけ一瞬（body.grain-on）。すべて pointer-events:none。 */
+body.dream-on .scenery{filter:blur(.6px)}
+body.dream-on #portraits{filter:blur(.4px)}
+.dream{position:absolute;inset:0;z-index:1;pointer-events:none;display:none;background:radial-gradient(ellipse 75% 70% at 50% 42%,transparent 58%,rgba(2,6,10,.5) 100%)}
+body.dream-on .dream{display:block}
+.dream .grain{position:absolute;inset:0;opacity:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:160px 160px}
+body.grain-on .dream .grain{animation:grain .9s ease-out both}
+@keyframes grain{from{opacity:.2}to{opacity:0}}
+@media (prefers-reduced-motion:reduce){body.grain-on .dream .grain{animation:none}}

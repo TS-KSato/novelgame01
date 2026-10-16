@@ -1,6 +1,8 @@
 'use strict';
-// 全編統合稿 v3（full-v3）。v2 からは、語彙の見直しと、scholar・court-after・border-road・races-yard の追加・置換だけを移す（V2_TO_V3）。旧版は FULL_MIGRATIONS → V1_TO_V2 → V2_TO_V3 の順に通す。
-const OPENING_REV='full-v3',OPENING_BACKUP_KEY='zelg-v1-backup-full-v3';
+// 全編統合稿 v4（full-v4）。v3 からは行の位置を変えず、序章の不鮮明な台詞（V3_REPLACED）だけを扱う。旧版は FULL_MIGRATIONS → V1_TO_V2 → V2_TO_V3 → 同じ位置 の順に通す。
+const OPENING_REV='full-v4',OPENING_BACKUP_KEY='zelg-v1-backup-full-v4';
+// 序章の演出対象（場面IDと原稿番号で判定する）。
+const DREAM_SCENE='prologue',DREAM_GRAIN_PAGES=['prologue-004','prologue-007'];
 const $=s=>document.getElementById(s),KEY='zelg-v1';let persist={seen:[],ends:[],slots:[null,null,null],auto:null,settings:{speed:38,volume:.22}},st=null,typing=null,autoTimer=null,skipTimer=null,auto=false,skip=false,full='',chars=[],at=0,ctx=null,master=null,musicTimer=null,sound=false;
 try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&Array.isArray(p.seen)&&Array.isArray(p.ends)&&Array.isArray(p.slots))persist={...persist,...p,settings:{...persist.settings,...p.settings}};}catch{}
 function toast(t){$('toast').textContent=t;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2600);}
@@ -14,6 +16,8 @@ const V1_TO_V2={"scholar":[0, 1, 2, 3, 4, 8, 6, 7, 20, 21, 22, 23, 24, 25, 26, 2
 const V2_TO_V3={"scholar": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 75, 74, 75, 71, 72, 76], "court-after": [0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41], "border-road": [0, 1, 2, 3, 4, 5, 6, 7, 22, 23, 24, 25], "races-yard": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]};
 // 意味が変わった旧 full-v2 の行。位置は移すが、既読は引き継がない（新しい文章として読み直す）。
 const V2_REPLACED={"scholar": [63, 64, 65, 66, 67, 68, 69]};
+// 同じ行数でも意味を変えた旧 full-v3 の行。位置は移すが、既読は引き継がない。
+const V3_REPLACED={"prologue": [3, 5, 6, 7]};
 function v3Position(node,line){
  if(!Object.hasOwn(STORY,node))return null;
  const a=V2_TO_V3[node];
@@ -21,18 +25,24 @@ function v3Position(node,line){
  if(!Number.isInteger(line)||line<0||line>=a.length)return null;
  return a[line];
 }
-// 既読は full-v1 / full-v2 からの移行だけ、行の対応で移す。それ以外の旧版の既読はリセットする（従来の方針）。
+// 既読は full-v1 / full-v2 / full-v3 からの移行だけ、行の対応で移す。それ以外の旧版の既読はリセットする（従来の方針）。
 function migrateSeen(seen,rev){
- if(!Array.isArray(seen)||(rev!=='full-v1'&&rev!=='full-v2'))return [];
+ if(!Array.isArray(seen)||(rev!=='full-v1'&&rev!=='full-v2'&&rev!=='full-v3'))return [];
  const out=[];
  for(const id of seen){
   if(typeof id!=='string')continue;
   const i=id.lastIndexOf(':');const node=id.slice(0,i),line=Number(id.slice(i+1));
   if(!Object.hasOwn(STORY,node))continue;
-  let l2=line;
-  if(rev==='full-v1'){const a=V1_TO_V2[node];if(a){if(!Number.isInteger(line)||line<0||line>=a.length)continue;l2=a[line];}}
-  if((V2_REPLACED[node]||[]).includes(l2))continue;
-  const l3=v3Position(node,l2);if(l3===null)continue;
+  let l3=null;
+  if(rev==='full-v3'){if(Number.isInteger(line)&&line>=0&&line<STORY[node].lines.length)l3=line;}
+  else{
+   let l2=line;
+   if(rev==='full-v1'){const a=V1_TO_V2[node];if(a){if(!Number.isInteger(line)||line<0||line>=a.length)continue;l2=a[line];}}
+   if((V2_REPLACED[node]||[]).includes(l2))continue;
+   l3=v3Position(node,l2);
+  }
+  if(l3===null)continue;
+  if((V3_REPLACED[node]||[]).includes(l3))continue;
   const key=node+':'+l3;if(!out.includes(key))out.push(key);
  }
  return out;
@@ -41,23 +51,29 @@ function migrateState(s){
  if(!s||typeof s!=='object'||typeof s.node!=='string')return{ok:false,reason:'セーブの中身が読めません'};
  if(s.contentRevision===OPENING_REV)return valid(s)?{ok:true,state:s}:{ok:false,reason:'本文の位置が範囲外です'};
  const rev=s.contentRevision===undefined?'unmarked-original':s.contentRevision;
- let v2node,v2line;
- if(rev==='full-v2'){v2node=s.node;v2line=s.line;}
- else{
-  let n1=s.node,l1=s.line;
-  if(rev!=='full-v1'){
-   const arr=FULL_MIGRATIONS[rev]?.[s.node];
-   if(!arr||!Number.isInteger(s.line)||s.line<0||s.line>=arr.length)return{ok:false,reason:'この本文版の位置を移せません'};
-   const pos=arr[s.line];n1=resolveStoryTarget(pos.node,s);l1=pos.line;
+ let v3node,v3line;
+ if(rev==='full-v3'){
+  if(!Object.hasOwn(STORY,s.node)||!Number.isInteger(s.line)||s.line<0||s.line>=STORY[s.node].lines.length)return{ok:false,reason:'本文の位置が範囲外です'};
+  v3node=s.node;v3line=s.line;
+ }else{
+  let v2node,v2line;
+  if(rev==='full-v2'){v2node=s.node;v2line=s.line;}
+  else{
+   let n1=s.node,l1=s.line;
+   if(rev!=='full-v1'){
+    const arr=FULL_MIGRATIONS[rev]?.[s.node];
+    if(!arr||!Number.isInteger(s.line)||s.line<0||s.line>=arr.length)return{ok:false,reason:'この本文版の位置を移せません'};
+    const pos=arr[s.line];n1=resolveStoryTarget(pos.node,s);l1=pos.line;
+   }
+   const a=V1_TO_V2[n1];
+   if(a){if(!Number.isInteger(l1)||l1<0||l1>=a.length)return{ok:false,reason:'この本文版の位置を移せません'};v2line=a[l1];}
+   else{if(!Object.hasOwn(STORY,n1)||!Number.isInteger(l1)||l1<0||l1>=STORY[n1].lines.length)return{ok:false,reason:'この本文版の位置を移せません'};v2line=l1;}
+   v2node=n1;
   }
-  const a=V1_TO_V2[n1];
-  if(a){if(!Number.isInteger(l1)||l1<0||l1>=a.length)return{ok:false,reason:'この本文版の位置を移せません'};v2line=a[l1];}
-  else{if(!Object.hasOwn(STORY,n1)||!Number.isInteger(l1)||l1<0||l1>=STORY[n1].lines.length)return{ok:false,reason:'この本文版の位置を移せません'};v2line=l1;}
-  v2node=n1;
+  v3node=v2node;v3line=v3Position(v2node,v2line);
+  if(v3line===null)return{ok:false,reason:'移行後の位置が本文の範囲外です'};
  }
- const l3=v3Position(v2node,v2line);
- if(l3===null)return{ok:false,reason:'移行後の位置が本文の範囲外です'};
- const t={...clone(s),node:v2node,line:l3,contentRevision:OPENING_REV};
+ const t={...clone(s),node:v3node,line:v3line,contentRevision:OPENING_REV};
  if(!valid(t))return{ok:false,reason:'移行後の位置が本文の範囲外です'};
  return{ok:true,state:t};
 }
@@ -88,14 +104,16 @@ function migrateStorage(){
 function archiveState(){if(!st)return null;return{state:clone(st),time:Date.now()};}
 function checkpoint(){persist.auto=archiveState();write();}
 function stopTimers(){clearInterval(typing);typing=null;clearTimeout(autoTimer);clearInterval(skipTimer);skipTimer=null;auto=false;skip=false;$('auto').classList.remove('active');$('skip').classList.remove('active');}
-function title(){stopTimers();$('game').hidden=true;$('ending').hidden=true;$('title').hidden=false;document.body.classList.remove('playing');$('continue').disabled=!persist.auto?.state;$('end-count').textContent=persist.ends.length+' / 6';}
+function title(){stopTimers();document.body.classList.remove('dream-on','grain-on');$('game').hidden=true;$('ending').hidden=true;$('title').hidden=false;document.body.classList.remove('playing');$('continue').disabled=!persist.auto?.state;$('end-count').textContent=persist.ends.length+' / 6';}
 function start(s){stopTimers();st=clone(s);$('title').hidden=true;$('ending').hidden=true;$('game').hidden=false;document.body.classList.add('playing');render();}
 function remember(){const id=st.node+':'+st.line;if(!persist.seen.includes(id))persist.seen.push(id);}
 function complete(){clearInterval(typing);typing=null;at=chars.length;$('prose').textContent=full;remember();if(auto&&!(STORY[st.node].choices&&st.line===STORY[st.node].lines.length-1))autoTimer=setTimeout(next,Math.max(1800,full.length*75));}
-function render(){clearInterval(typing);clearTimeout(autoTimer);$('choices').replaceChildren();const s=STORY[st.node],line=storyLine(st.node,st.line,st);updatePortraits(st.node,st.line,line[0]);$('chapterNo').textContent=s.ch;$('chapterName').textContent=s.title;$('sceneWord').textContent=s.ch==='PROLOGUE'?'何も、終わらない。':s.title;$('speaker').textContent=line[0]||'　';full=line[1];chars=Array.from(full);at=0;$('prose').textContent='';$('page').textContent=String(st.line+1).padStart(2,'0')+' / '+String(s.lines.length).padStart(2,'0');
+function render(){clearInterval(typing);clearTimeout(autoTimer);document.body.classList.toggle('dream-on',st.node===DREAM_SCENE);document.body.classList.remove('grain-on');$('choices').replaceChildren();const s=STORY[st.node],line=storyLine(st.node,st.line,st);updatePortraits(st.node,st.line,line[0]);$('chapterNo').textContent=s.ch;$('chapterName').textContent=s.title;$('sceneWord').textContent=s.ch==='PROLOGUE'?'何も、終わらない。':s.title;$('speaker').textContent=line[0]||'　';full=line[1];chars=Array.from(full);at=0;$('prose').textContent='';$('page').textContent=String(st.line+1).padStart(2,'0')+' / '+String(s.lines.length).padStart(2,'0');
 if(!st.log.length||st.log.at(-1)[1]!==full)st.log.push(line);if(st.log.length>2000)st.log.shift();checkpoint();
 if(persist.settings.speed===0||skip){complete();}else{typing=setInterval(()=>{$('prose').textContent=chars.slice(0,++at).join('');if(at>=chars.length)complete();},persist.settings.speed);}}
-function next(){if($('modal').open||$('game').hidden||!st)return;if(typing){complete();return;}const s=STORY[st.node];if(st.line<s.lines.length-1){st.line++;render();return;}if(s.choices){if($('choices').childElementCount)return;clearTimeout(autoTimer);setPortraitChoice(true);s.choices.forEach((c,i)=>{const b=document.createElement('button');b.textContent=c.text;const sm=document.createElement('small');sm.textContent=String(i+1).padStart(2,'0')+' →';b.append(sm);b.onclick=()=>{stopTimers();for(const[k,v]of Object.entries(c.rel))st.rel[k]=(st.rel[k]||0)+v;for(const f of c.fragments)if(!st.fragments.includes(f)){st.fragments.push(f);toast('記憶の断片を入手しました');}Object.assign(st.flags,c.flags);go(c.to);};$('choices').append(b);});return;}go(s.next);}
+// 序章の2つの不鮮明な台詞へ進入した時だけ、薄い粒状ノイズを一瞬重ねる。早送り中は出さない。
+function flashDream(){if(skip||!st||st.node!==DREAM_SCENE||!DREAM_GRAIN_PAGES.includes(PAGE_IDS[st.node][st.line]))return;document.body.classList.remove('grain-on');void document.body.offsetWidth;document.body.classList.add('grain-on');}
+function next(){if($('modal').open||$('game').hidden||!st)return;if(typing){complete();return;}const s=STORY[st.node];if(st.line<s.lines.length-1){st.line++;render();flashDream();return;}if(s.choices){if($('choices').childElementCount)return;clearTimeout(autoTimer);setPortraitChoice(true);s.choices.forEach((c,i)=>{const b=document.createElement('button');b.textContent=c.text;const sm=document.createElement('small');sm.textContent=String(i+1).padStart(2,'0')+' →';b.append(sm);b.onclick=()=>{stopTimers();for(const[k,v]of Object.entries(c.rel))st.rel[k]=(st.rel[k]||0)+v;for(const f of c.fragments)if(!st.fragments.includes(f)){st.fragments.push(f);toast('記憶の断片を入手しました');}Object.assign(st.flags,c.flags);go(c.to);};$('choices').append(b);});return;}go(s.next);}
 function go(id){id=resolveStoryTarget(id,st);if(id==='$resolve'){go('end_'+resolveEnding(st));return;}if(id.startsWith('$')){finish(id.slice(1));return;}st.node=id;st.line=0;render();}
 function finish(id){stopTimers();if(!persist.ends.includes(id))persist.ends.push(id);write();$('game').hidden=true;$('ending').hidden=false;const e=ENDINGS[id];$('ending').innerHTML='<div><div class="eyebrow">ENDING '+e.no+' / VI</div><div class="muted">'+e.label+'</div><h2>'+e.name+'</h2><p>'+e.desc+'</p><p class="muted">'+e.hint+'</p><button class="btn" id="again">もう一度、旅をする</button><button class="btn" id="endHome">タイトルへ</button></div>';$('again').onclick=()=>start(fresh());$('endHome').onclick=title;}
 function modal(name,content){stopTimers();$('modalTitle').textContent=name;$('modalBody').replaceChildren();if(typeof content==='string')$('modalBody').innerHTML=content;else $('modalBody').append(content);$('modal').showModal();}
