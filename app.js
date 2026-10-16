@@ -32,4 +32,30 @@ function audio(){try{if(!ctx){ctx=new(window.AudioContext||window.webkitAudioCon
 $('new').onclick=()=>{if(persist.auto&& !confirm('新しい旅を始めます。自動セーブは更新されます。よろしいですか？'))return;if(!sound)audio();start(fresh());};$('continue').onclick=()=>{if(valid(persist.auto?.state)){if(!sound)audio();start(persist.auto.state);}};$('dialogue').onclick=next;$('sound').onclick=audio;$('collection').onclick=collection;$('settings').onclick=saves;$('save').onclick=saves;$('memory').onclick=memories;$('close').onclick=()=>$('modal').close();$('log').onclick=()=>{const list=document.createElement('div');for(const[n,t]of st.log){const line=document.createElement('div');line.className='line';const name=document.createElement('div');name.className='badge';name.textContent=n||'地の文';const body=document.createElement('div');body.textContent=t;line.append(name,body);list.append(line);}modal('旅の履歴',list);$('modal').scrollTop=$('modal').scrollHeight;};
 $('auto').onclick=()=>{if(skip)stopTimers();auto=!auto;$('auto').classList.toggle('active',auto);clearTimeout(autoTimer);if(auto&&!typing)autoTimer=setTimeout(next,2000);};$('skip').onclick=()=>{if(skip){stopTimers();return;}clearTimeout(autoTimer);auto=false;$('auto').classList.remove('active');skip=true;$('skip').classList.add('active');skipTimer=setInterval(()=>{if(!persist.seen.includes(st.node+':'+st.line)||STORY[st.node].choices&&st.line===STORY[st.node].lines.length-1){stopTimers();return;}next();},160);};
 function home(){if(st&&!$('game').hidden)checkpoint();title();}$('brand').onclick=home;$('menu').onclick=()=>{modal('旅をひと休み','<p class="muted">現在の進行は自動保存されています。</p><div class="row"><button class="btn" id="menuSave">設定・セーブ</button><button class="btn" id="menuHome">タイトルへ戻る</button></div>');$('menuSave').onclick=()=>{$('modal').close();saves();};$('menuHome').onclick=()=>{$('modal').close();home();};};
-$('rotateFull').onclick=async()=>{try{await document.documentElement.requestFullscreen();await screen.orientation.lock('landscape');}catch{toast('端末を横向きにしてください');}};document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea'))return;if(e.code==='Space'||e.code==='Enter'){if(!$('modal').open&&!$('game').hidden){e.preventDefault();next();}}});document.addEventListener('visibilitychange',()=>{if(document.hidden){stopTimers();if(ctx)ctx.suspend();}else if(sound&&ctx)ctx.resume();});title();
+$('rotateFull').onclick=async()=>{try{await document.documentElement.requestFullscreen();await screen.orientation.lock('landscape');}catch{toast('端末を横向きにしてください');}};document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea'))return;if(e.code==='Space'||e.code==='Enter'){if(!$('modal').open&&!$('game').hidden){e.preventDefault();next();}}});document.addEventListener('visibilitychange',()=>{if(document.hidden){stopTimers();if(ctx)ctx.suspend();}else if(sound&&ctx)ctx.resume();});// ホーム画面からのWebアプリ起動の案内。自動では表示しない（補助リンクを押したときだけ開く）。
+// ホーム画面で起動しているとき（standalone）は、この案内を隠す。
+const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+$('appGuide').hidden=standalone;
+const isIOS=/iPhone|iPod|iPad/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function steps(list,items){const ol=document.createElement('ol');for(const t of items){const li=document.createElement('li');li.textContent=t;ol.append(li);}list.append(ol);}
+function appGuide(){
+ const body=document.createElement('div'),para=(t,c)=>{const e=document.createElement('p');e.textContent=t;if(c)e.className=c;return e;},head=t=>{const h=document.createElement('h3');h.textContent=t;return h;};
+ body.append(para('ホーム画面に追加すると、Safariのタブやアドレス欄なしで遊べます。追加せず、このまま遊ぶこともできます。'));
+ if(isIOS){
+  body.append(head('iPhoneでの追加手順'));
+  steps(body,['Safariの共有メニューを開く','「ホーム画面に追加」を選ぶ','「Webアプリとして開く」をオンにして追加','ホーム画面のアイコンから起動する']);
+ }else{
+  body.append(para('この手順はiPhone向けです。お使いの端末では、ブラウザのメニューから「ホーム画面に追加」などを探してください。表示名は端末やブラウザによって異なります。','muted'));
+ }
+ body.append(head('今までのセーブを移す場合'));
+ body.append(para('Safariとホーム画面のアプリは、保存される場所が別々です。進行は自動では共有されません。セーブコードで移してください。','muted'));
+ steps(body,['通常のSafariで、タイトル画面の「設定・セーブ」を開く','「コードを書き出す」を押し、表示されたコードをすべてコピーする（一度でも物語を進めていれば書き出せます）','ホーム画面のアプリを開き、「設定・セーブ」の入力欄にコードを貼り付けて「コードから復元」を押す']);
+ body.append(para('移るのは、現在の進行・既読・到達した結末です。手動セーブの3スロットはコードに含まれません。','muted'));
+ const row=document.createElement('div');row.className='row';
+ const to=document.createElement('button');to.className='btn';to.textContent='設定・セーブを開く';to.onclick=()=>saves();
+ const close=document.createElement('button');close.className='btn';close.textContent='閉じる';close.onclick=()=>$('modal').close();
+ row.append(to,close);body.append(row);
+ modal('ブラウザの操作欄なしで遊ぶ',body);
+}
+$('appGuide').onclick=appGuide;
+title();

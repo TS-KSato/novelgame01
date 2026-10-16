@@ -62,3 +62,21 @@ p.tagline,nav>button,#dialogue,#choices button{word-break:keep-all;overflow-wrap
 
 /* ホーム画面から起動したとき（standalone）：ステータスバーの下に文字が入らないよう、上側の安全領域を空ける */
 header{top:env(safe-area-inset-top,0px)}
+
+/* ブラウザの操作欄なしで遊ぶ案内（補助リンク）：タイトルのヘッダーに置き、ゲーム中は出さない */
+#appGuide{font:11px/1.4 Arial,sans-serif;letter-spacing:.06em;color:var(--gold);padding:6px 8px;text-decoration:underline;text-underline-offset:4px;white-space:nowrap}
+body.playing #appGuide{display:none}
+/* 案内パネル：高さが足りない画面では中身をスクロールし、閉じるボタンを必ず押せるようにする */
+#modal{overflow:auto;overscroll-behavior:contain;max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px)}
+#modal h3{font-family:serif;color:var(--gold);font-size:13px;font-weight:400;margin:14px 0 6px}
+#modal ol{margin:4px 0 8px;padding-left:1.4em}
+#modal li{margin:2px 0}
+@media(max-height:520px){
+ #modal{padding:14px 20px}
+ #modal h3{margin:8px 0 4px}
+}
+/* 案内パネルの見出し行（×）は、中身をスクロールしても上に残す */
+#modal .modal-top{position:sticky;top:0;z-index:1;background:#0e1b24;margin:-24px -30px 12px;padding:24px 30px 13px}
+@media(max-height:520px){
+ #modal .modal-top{margin:-14px -20px 8px;padding:14px 20px 8px}
+}
