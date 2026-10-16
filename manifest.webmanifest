@@ -1,0 +1,17 @@
+{
+  "id": "./",
+  "name": "災厄と継承の呪い",
+  "short_name": "災厄と継承",
+  "description": "恐怖で保たれた世界を、信頼で変えられるか。六つの結末を辿るノベルゲーム。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0b161d",
+  "theme_color": "#0a151b",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
