@@ -10,7 +10,12 @@ const PORTRAITS={
  tia:{name:'ティア',dir:'assets/characters/tia/',expressions:[['normal','通常'],['happy','満面の笑み・両拳を上げる'],['annoyed','不機嫌・腕組み'],['embarrassed','照れ隠し・後頭部に手'],['serious','真剣・仲間を守る構え'],['sad','悲しみ・肩を落とす'],['frustrated','悔しがる・ギャグ（大きく崩れる）']]},
  yuri:{name:'ユーリ',dir:'assets/characters/yuri/',expressions:[['normal','通常・穏やかな説明'],['nostalgic','懐かしさ・共有した過去'],['sad','失われる記憶への悲しみ'],['serious','真実を伝える・静かな決意']]},
  neia:{name:'ネイア',dir:'assets/characters/neia/',expressions:[['normal','通常・警戒を残す証言'],['angry','怒り・追及'],['sad','薄れる記憶への悲しみ'],['trust','警戒を解き、信頼・承認']]},
- kyle:{name:'カイル',dir:'assets/characters/kyle/',expressions:[['normal','寛大で親しみやすい通常の会話'],['nostalgic','成長した妹や親友への懐かしさと愛情'],['serious','冷静な判断・重要な決意'],['relieved','別れの悲しみを含む安堵と感謝'],['calamity','厄災の力に覆われた姿（巨大・異形）'],['exhausted','力が退いた後、辛うじて人の姿を保つ消耗した姿']]}
+ kyle:{name:'カイル',dir:'assets/characters/kyle/',expressions:[['normal','寛大で親しみやすい通常の会話'],['nostalgic','成長した妹や親友への懐かしさと愛情'],['serious','冷静な判断・重要な決意'],['relieved','別れの悲しみを含む安堵と感謝'],['calamity','厄災の力に覆われた姿（巨大・異形）'],['exhausted','力が退いた後、辛うじて人の姿を保つ消耗した姿']]},
+ // 人物別フォルダーは作らず、モブは npc/ にまとめる。表情は無表情の1枚（3番目の要素が画像ファイル名）。
+ thug:{name:'男',dir:'assets/characters/npc/',expressions:[['normal','無表情（荒くれ冒険者の主犯）','thug.png']]},
+ guard:{name:'門兵',dir:'assets/characters/npc/',expressions:[['normal','無表情（門番）','guard.png']]},
+ referee:{name:'審判',dir:'assets/characters/npc/',expressions:[['normal','無表情（闘技場の審判）','referee.png']]},
+ miller:{name:'水車小屋の主人',dir:'assets/characters/npc/',expressions:[['normal','無表情（水車小屋の主人）','miller.png']]}
 };
 // 表情ごとの位置補正。素材の足元の高さが通常と違う場合に、縦方向だけずらして接地位置を揃える（画像は変形しない）。
 // 値は立ち絵の高さに対する%。正の値で下へ移動する。
@@ -32,7 +37,8 @@ function portraitSlots(chars){
  if(order.length>3)throw new Error('同時に表示できるのは3人までです');
  return Object.fromEntries(order.map((c,i)=>[c,names[i]]));
 }
-const portraitPath=(char,expr)=>PORTRAITS[char].dir+expr+'.png';
+// 表情の3番目の要素があればそのファイル名を使う。なければ表情名＋.png（既存の人物の配置）。
+const portraitPath=(char,expr)=>{const e=PORTRAITS[char].expressions.find(x=>x[0]===expr);return PORTRAITS[char].dir+(e&&e[2]?e[2]:expr+'.png');};
 const isPortraitExpression=(char,expr)=>Object.hasOwn(PORTRAITS,char)&&PORTRAITS[char].expressions.some(([id])=>id===expr);
 
 // 立ち絵の要素を作る。キャラごとに1つずつ置き、表示を切り替えても要素は作り直さない。
