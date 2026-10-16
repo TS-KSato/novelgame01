@@ -1,0 +1,29 @@
+/* 演出の比較ページ専用。本編の見え方は変えない（index.html は読み込まない）。 */
+html,body{height:100%;overflow:hidden}
+body{margin:0}
+#app{position:relative;overflow:hidden;transition:margin-right .25s ease}
+#app[data-bg=light] .veil{background:linear-gradient(0deg,rgba(18,24,28,.5),transparent 45%)}
+#app[data-bg=light] .scenery::after{content:"";position:absolute;inset:0;background:rgba(238,234,220,.44)}
+.fx-open{position:absolute;top:10px;right:12px;z-index:40;padding:8px 12px;border:1px solid #8c8266;background:#0d202aee;font:12px sans-serif;letter-spacing:.06em;color:var(--paper)}
+.fx-notice{position:absolute;left:50%;top:50px;transform:translateX(-50%);z-index:40;max-width:86%;margin:0;padding:8px 14px;background:#20262ce6;border:1px solid #b8a87a88;font:12px/1.6 sans-serif;color:#f1e8cf;text-align:center;pointer-events:none}
+#fxPanel{position:fixed;left:0;right:0;bottom:0;z-index:60;max-height:60dvh;overflow:auto;padding:12px 16px 22px;background:#0e1b24f7;border-top:1px solid #8f8264;font:12px/1.6 system-ui,sans-serif;color:var(--paper);-webkit-overflow-scrolling:touch}
+.fx-panel-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #b8a87a45;padding-bottom:8px;margin-bottom:8px}
+.fx-panel-head h1{margin:0;font:400 16px Georgia,serif;letter-spacing:.12em}
+#fxClose{padding:6px 12px;border:1px solid #8c8266;background:transparent;color:var(--paper);font:12px sans-serif}
+.fx-group{margin:12px 0}
+.fx-group h2{margin:0 0 6px;font:400 12px Georgia,serif;color:var(--gold);letter-spacing:.08em}
+.fx-seg{display:flex;flex-wrap:wrap;gap:6px}
+.fx-seg button,#fxPlay,#fxStop{min-height:40px;padding:8px 12px;border:1px solid #8c8266;background:transparent;color:var(--paper);font:13px sans-serif}
+.fx-seg button[aria-pressed=true],#fxPlay{background:#c9b88733;border-color:var(--gold);color:#f3ead0}
+.fx-actions{display:flex;gap:8px}
+.fx-check{display:flex;align-items:center;gap:8px;margin:6px 0;min-height:32px}
+.fx-check input{width:20px;height:20px}
+.fx-check input:disabled+span,.fx-check input:disabled{opacity:.45}
+.fx-note{margin:8px 0 0;color:#b9c3c4;font-size:11px}
+.fx-url{width:100%;padding:8px;background:#081219;border:1px solid #8c8266;color:var(--paper);font:11px monospace}
+@media(min-width:640px) and (orientation:landscape){
+ #fxPanel{top:0;bottom:0;left:auto;right:0;width:300px;max-height:none;border-top:0;border-left:1px solid #8f8264}
+ body.panel-open #app{margin-right:300px}
+}
+/* 縦向きでも操作できるように（本編の横向き専用の表示制御は、この確認ページでは使わない）。 */
+@media(orientation:portrait){#app{visibility:visible}}

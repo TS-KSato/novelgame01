@@ -1,0 +1,13 @@
+/* 演出層（画像とは独立）。強さは effects.js が --fx-* 変数で設定する。
+   周辺減光・ぼかしは .fx-static のときだけ、粒状ノイズは .fx-run の間だけ見える。すべて pointer-events:none。 */
+.fx-root{--fx-vig:0;--fx-blur-bg:0px;--fx-blur-fg:0px;--fx-grain-op:0;--fx-grain-dur:1s}
+.fx-root .fx-layer{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.fx-root .fx-vig{position:absolute;inset:0;display:none;background:radial-gradient(ellipse 75% 70% at 50% 42%,transparent 55%,rgba(2,6,10,var(--fx-vig)) 100%)}
+.fx-root.fx-static .fx-vig{display:block}
+.fx-root .fx-scenery,.fx-root .fx-portraits{transition:filter .4s ease}
+.fx-root.fx-static .fx-scenery{filter:blur(var(--fx-blur-bg))}
+.fx-root.fx-static .fx-portraits{filter:blur(var(--fx-blur-fg))}
+.fx-root .fx-grain{position:absolute;inset:0;opacity:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.45' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:240px 240px}
+.fx-root .fx-grain.fx-run{animation:fx-grain var(--fx-grain-dur) ease-out both}
+@keyframes fx-grain{from{opacity:var(--fx-grain-op)}to{opacity:0}}
+@media (prefers-reduced-motion:reduce){.fx-root .fx-grain.fx-run{animation:none}}
