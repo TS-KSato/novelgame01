@@ -10,7 +10,7 @@ const PORTRAITS={
  tia:{name:'ティア',dir:'assets/characters/tia/',expressions:[['normal','通常'],['happy','満面の笑み・両拳を上げる'],['annoyed','不機嫌・腕組み'],['embarrassed','照れ隠し・後頭部に手'],['serious','真剣・仲間を守る構え'],['sad','悲しみ・肩を落とす'],['frustrated','悔しがる・ギャグ（大きく崩れる）']]},
  yuri:{name:'ユーリ',dir:'assets/characters/yuri/',expressions:[['normal','通常・穏やかな説明'],['nostalgic','懐かしさ・共有した過去'],['sad','失われる記憶への悲しみ'],['serious','真実を伝える・静かな決意']]},
  neia:{name:'ネイア',dir:'assets/characters/neia/',expressions:[['normal','通常・警戒を残す証言'],['angry','怒り・追及'],['sad','薄れる記憶への悲しみ'],['trust','警戒を解き、信頼・承認']]},
- kyle:{name:'カイル',dir:'assets/characters/kyle/',expressions:[['normal','寛大で親しみやすい通常の会話'],['nostalgic','成長した妹や親友への懐かしさと愛情'],['serious','冷静な判断・重要な決意'],['relieved','別れの悲しみを含む安堵と感謝']]}
+ kyle:{name:'カイル',dir:'assets/characters/kyle/',expressions:[['normal','寛大で親しみやすい通常の会話'],['nostalgic','成長した妹や親友への懐かしさと愛情'],['serious','冷静な判断・重要な決意'],['relieved','別れの悲しみを含む安堵と感謝'],['calamity','厄災の力に覆われた姿（巨大・異形）']]}
 };
 // 表情ごとの位置補正。素材の足元の高さが通常と違う場合に、縦方向だけずらして接地位置を揃える（画像は変形しない）。
 // 値は立ち絵の高さに対する%。正の値で下へ移動する。
