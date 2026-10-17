@@ -1,4 +1,4 @@
-/* fx-diag-2 : 演出の比較ページ専用。本編の見え方は変えない（index.html は読み込まない）。 */
+/* fx-diag-3 : 演出の比較ページ専用。本編の見え方は変えない（index.html は読み込まない）。 */
 html,body{height:100%;overflow:hidden}
 body{margin:0}
 #app{position:relative;overflow:hidden;transition:margin-right .25s ease}
@@ -43,3 +43,12 @@ body{margin:0}
 }
 .fx-dock.fx-collapsed .fx-status{display:none}
 #dgToggle{min-height:34px;padding:6px 10px;border:1px solid #8c8266;background:transparent;color:var(--paper);font:12px sans-serif}
+/* 整理版：通常の操作は上部の行、開発者向け診断は閉じた枠の中 */
+.fx-info{margin:2px 0 6px;font:12px/1.5 system-ui,sans-serif;color:#f3ead0}
+.fx-dock-btns{margin-bottom:4px}
+.fx-dock-btns button{min-height:36px}
+.fx-dev{margin-top:4px;border-top:1px solid #8f826430;padding-top:4px}
+.fx-dev summary{cursor:pointer;color:#c9b88a;font:12px sans-serif;padding:4px 0}
+.fx-diag-note{margin:4px 0;padding:4px 8px;border:1px solid #d8a84a;color:#ffe3a3;background:#3a2a0cdd;font:12px sans-serif}
+#dgOpaque,#dgSolid,#dgRelease{min-height:34px;padding:6px 10px;border:1px dashed #8c8266;background:#13262f;color:var(--paper);font:12px sans-serif}
+.fx-info{white-space:pre-line}

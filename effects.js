@@ -4,7 +4,7 @@
 // モードは排他（idle / playing / paused / still / solid / diagstill）。切り替えの前に必ず前の状態を止める。
 // タイマーは最大1本。確認ページ限定の単色・静止表示は、操作するまで消えない（タイマーを使わない）。
 (function(){
-const BUILD='fx-diag-2';
+const BUILD='fx-diag-3';
 const LEVELS={
  none:{label:'効果なし',vig:0,blurBg:0,blurFg:0,peak:0,cell:0,density:0},
  weak:{label:'弱',vig:.28,blurBg:.5,blurFg:.3,peak:.4,cell:3,density:.10},
@@ -21,7 +21,7 @@ const motionQuery=window.matchMedia?window.matchMedia('(prefers-reduced-motion: 
 let root=null,layers={},level=DEFAULT,staticOn=true,colorOn=false,active=false,suppressed=false;
 let mode='idle',timer=null,cycleStart=0,pausedElapsed=0,loop=false,cw=0,ch=0,bufs={},cellNow=4;
 let drawCount=0,lastDraw='なし',lastError='なし',ctxOk=null,lastCellCss=0;
-let noiseScale=DEFAULT_NOISE_SCALE,lastBase=null;   // lastBase: 直前の描画の基準不透明度（倍率を掛ける前）。診断表示では null
+let noiseScale=DEFAULT_NOISE_SCALE,lastBase=null,diagMode=null;   // diagMode: 診断表示（'solid' / 'opaque'）。通常の操作で必ず解除される   // lastBase: 直前の描画の基準不透明度（倍率を掛ける前）。診断表示では null
 
 function emit(){if(root)root.dispatchEvent(new CustomEvent('fxstatechange',{detail:{mode,level,active}}));}
 function ensureSize(cell){
@@ -96,9 +96,22 @@ function tick(){
 }
 function finish(){stopTimer();clearLayers();setMode('idle');}
 function setMode(m){mode=m;applyStatic();emit();}
+// 静止表示の基準フレーム。動く粒と同じ密度・同じ粒径で、包絡が最大（=現在の弱の基準不透明度）の1枚を描く。
+// 倍率は不透明度だけに掛ける。白と黒の粒は同じ不透明度で重なる（Canvas全体の不透明度）。
+function paintStillRef(){
+ ensureSize();
+ const L=LEVELS[level];
+ paint('静止ノイズ(基準)',()=>paintNoise('main',L.density));
+ lastBase=L.peak;
+ layers.main.style.opacity=(lastBase*noiseScale).toFixed(3);
+ if(colorOn){
+  paint('静止色ずれ',()=>{paintNoise('red',L.density*.6);paintNoise('cyan',L.density*.6);});
+  layers.red.style.opacity=(lastBase*noiseScale).toFixed(3);layers.cyan.style.opacity=(lastBase*noiseScale).toFixed(3);
+ }else{for(const k of ['red','cyan']){const c=layers[k];const x=c.getContext('2d');if(x)x.clearRect(0,0,c.width,c.height);c.style.opacity='0';}}
+}
 function applyStatic(){root.classList.toggle('fx-static',active&&staticOn&&!suppressed&&level!=='none');}
 // 前の状態を完全に止める（タイマー・描画・診断表示）。すべての操作の最初に呼ぶ。
-function halt(){stopTimer();clearLayers();suppressed=false;}
+function halt(){stopTimer();clearLayers();suppressed=false;diagMode=null;}
 
 const Dream={
  BUILD,LEVELS,DEFAULT,DURATION,GAP,FRAME,
@@ -113,7 +126,7 @@ const Dream={
  noiseAvailable(){return !this.reduced()&&level!=='none';},
  onReduceChange(fn){if(motionQuery)motionQuery.addEventListener('change',()=>fn(Dream.reduced()));},
  level(){return level;},
- state(){return{mode,level,active,colorOn,staticOn,suppressed};},
+ state(){return{mode,level,active,colorOn,staticOn,suppressed,diag:diagMode,noiseScale};},
  setLevel(name){
   if(!Object.prototype.hasOwnProperty.call(LEVELS,name))name=DEFAULT;
   halt();level=name;const L=LEVELS[name];
@@ -155,12 +168,12 @@ const Dream={
  // 動かないノイズを1枚（通常の強度）
  drawStill(){
   if(!active||level==='none')return false;
-  halt();ensureSize();paint('静止ノイズ(通常)',()=>{drawFrame(0.3);});
+  halt();paintStillRef();
   setMode('still');return true;
  },
  // ---- 確認ページ用の診断表示（操作するまで消えない。タイマーなし） ----
  solid(){
-  halt();active=true;suppressed=true;ensureSize(STILL_CELL);lastBase=null;
+  halt();active=true;suppressed=true;diagMode='solid';ensureSize(STILL_CELL);lastBase=null;
   paint('単色(マゼンタ)',()=>{
    layers.main.style.opacity='1';
    fillPixels('main',px=>{px.fill(0xFFFF00FF);});
@@ -169,8 +182,8 @@ const Dream={
   applyStatic();mode='solid';emit();return true;
  },
  coarseStill(){
-  halt();active=true;suppressed=true;ensureSize(STILL_CELL);lastBase=null;
-  paint('静止ノイズ(診断・粗い白黒)',()=>{
+  halt();active=true;suppressed=true;diagMode='opaque';ensureSize(STILL_CELL);lastBase=null;
+  paint('診断：不透明ノイズ',()=>{
    layers.main.style.opacity='1';
    paintNoise('main',STILL_DENSITY);
   });
@@ -182,7 +195,7 @@ const Dream={
  isActive(){return active;},
  // 診断用：表示の状態を実測値で返す（数値が動いていることだけで「見えている」と判断しないため、位置・重なり・合成も返す）
  diagnostics(){
-  const out={build:BUILD,mode,level,active,suppressed,reduced:this.reduced(),drawCount,lastDraw,lastError,ctxOk,noiseScale};
+  const out={build:BUILD,mode,level,active,suppressed,diagMode,reduced:this.reduced(),drawCount,lastDraw,lastError,ctxOk,noiseScale,refOpacity:LEVELS[level].peak,stillApplied:+(LEVELS[level].peak*noiseScale).toFixed(3)};
   const m=layers.main;
   if(!m)return out;
   const r=m.getBoundingClientRect();const cs=getComputedStyle(m);

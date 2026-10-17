@@ -1,4 +1,4 @@
-// fx-build: fx-diag-2
+// fx-build: fx-diag-3
 'use strict';
 // 演出の比較ページ（確認用）。本編の進行・セーブ・既読・結末には触れない（localStorage を使わない）。
 (function(){
@@ -100,7 +100,7 @@
 
  function syncUrl(){
   const u=new URL(location.href);
-  u.searchParams.set('v','fx-diag-2');
+  u.searchParams.set('v','fx-diag-3');
   u.searchParams.set('nopacity',String(state.nop));
   u.searchParams.set('level',state.level);u.searchParams.set('bg',state.bg);u.searchParams.set('effect',state.effect);
   history.replaceState(null,'',u.pathname+u.search);
@@ -115,8 +115,15 @@
  }
  function syncState(){
   const s=Dream.state();
-  const label=loopOn&&s.mode==='playing'?'連続プレビュー中':(s.mode==='paused'&&loopOn?'一時停止中（連続プレビュー）':(MODE_TEXT[s.mode]||s.mode));
-  $('fxState').textContent='状態：'+label+(s.level==='none'?'（効果なし）':'');
+  const d=Dream.diagnostics();
+  const lvLabel={none:'効果なし',weak:'弱',mid:'中',strong:'強'}[state.level];
+  const ref=Dream.LEVELS[state.level].peak;
+  const applied=(ref*Dream.noiseScale()).toFixed(2);
+  const live=d.canvasOpacity&&d.canvasOpacity!=='0'?Number(d.canvasOpacity).toFixed(2):'0.00';
+  const modeLabel=s.diag?'診断中（演出設定は適用されません）':(loopOn&&s.mode==='playing'?'連続プレビュー中':(s.mode==='paused'&&loopOn?'一時停止中（連続プレビュー）':(MODE_TEXT[s.mode]||s.mode)));
+
+  $('fxState').textContent='状態：'+modeLabel+'　強さ：'+lvLabel+'　ノイズの薄さ：'+Math.round(Dream.noiseScale()*100)+'%\n基準 '+ref.toFixed(2)+'（100%時）→ 静止の適用 '+applied+'　／ 表示中の値 '+live;
+  $('fxDiagNote').hidden=!s.diag;
   $('fxLoop').setAttribute('aria-pressed',String(loopOn));
   $('fxLoop').textContent=loopOn?'連続プレビューを止める':'連続プレビュー';
   $('fxPause').disabled=!(s.mode==='playing'||s.mode==='paused');
@@ -172,8 +179,8 @@
  }
  // 診断（確認用限定）。単色・静止ノイズは操作するまで残る。タイマーは使わない。
  function diagSolid(){cancelTyping();loopOn=false;Dream.solid();prose.textContent=SAMPLE;syncState();}
- function diagStill(){cancelTyping();loopOn=false;Dream.coarseStill();prose.textContent=SAMPLE;syncState();}
- function diagClear(){cancelTyping();loopOn=false;Dream.clearAll();prose.textContent=SAMPLE;syncState();}
+ function diagOpaque(){cancelTyping();loopOn=false;Dream.coarseStill();prose.textContent=SAMPLE;syncState();}
+ function diagRelease(){cancelTyping();loopOn=false;Dream.clearAll();prose.textContent=SAMPLE;syncState();}
 
  document.querySelectorAll('#fxLevels button').forEach(b=>b.addEventListener('click',()=>{state.level=b.dataset.level;loopOn=false;Dream.setLevel(state.level);Dream.setStatic($('fxStatic').checked);syncButtons();syncUrl();syncState();}));
  document.querySelectorAll('#fxBg button').forEach(b=>b.addEventListener('click',()=>{state.bg=b.dataset.bg;syncButtons();syncUrl();}));
@@ -188,9 +195,8 @@
  $('fxStill').addEventListener('click',still);
  $('fxStop').addEventListener('click',stop);
  $('dgSolid').addEventListener('click',diagSolid);
- $('dgStill').addEventListener('click',diagStill);
- $('dgClear').addEventListener('click',diagClear);
- $('dgToggle').addEventListener('click',()=>{const dock=$('fxDock');const c=dock.classList.toggle('fx-collapsed');$('dgToggle').textContent=c?'診断詳細を開く':'診断詳細を閉じる';$('dgToggle').setAttribute('aria-expanded',String(!c));});
+ $('dgOpaque').addEventListener('click',diagOpaque);
+ $('dgRelease').addEventListener('click',diagRelease);
  openBtn.addEventListener('click',()=>{panel.hidden=false;document.body.classList.add('panel-open');openBtn.setAttribute('aria-expanded','true');});
  $('fxClose').addEventListener('click',()=>{panel.hidden=true;document.body.classList.remove('panel-open');openBtn.setAttribute('aria-expanded','false');});
  Dream.setLevel(state.level);
@@ -202,5 +208,5 @@
  checkServed();
  // 状態表示の更新（描画は行わない）。タイマーは1本だけ。
  setInterval(renderDiag,500);
- window.fxPreview={play,continuous,pauseToggle,still,stop,diagSolid,diagStill,diagClear,setLevel:n=>{$('fxLevels').querySelector('[data-level='+n+']').click();},state:()=>({...state,...Dream.state(),loop:loopOn,typing:typeTimer!==null})};
+ window.fxPreview={play,continuous,pauseToggle,still,stop,diagSolid,diagOpaque,diagRelease,setLevel:n=>{$('fxLevels').querySelector('[data-level='+n+']').click();},state:()=>({...state,...Dream.state(),loop:loopOn,typing:typeTimer!==null})};
 })();

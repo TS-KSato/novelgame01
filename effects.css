@@ -1,7 +1,7 @@
-/* fx-diag-2 : 演出層（画像とは独立）。強さは effects.js が --fx-* 変数で設定する。
+/* fx-diag-3 : 演出層（画像とは独立）。強さは effects.js が --fx-* 変数で設定する。
    周辺減光・ぼかしは .fx-static のときだけ見える。粒状ノイズは低解像度 Canvas（canvas.fx-noise）で、描き直しは effects.js が行う。
    色ずれ（red / cyan）はノイズ層だけに掛ける。すべて pointer-events:none。 */
-.fx-root{--fx-build:"fx-diag-2";--fx-vig:0;--fx-blur-bg:0px;--fx-blur-fg:0px}
+.fx-root{--fx-build:"fx-diag-3";--fx-vig:0;--fx-blur-bg:0px;--fx-blur-fg:0px}
 .fx-root .fx-layer{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
 .fx-root .fx-vig{position:absolute;inset:0;display:none;background:radial-gradient(ellipse 75% 70% at 50% 42%,transparent 55%,rgba(2,6,10,var(--fx-vig)) 100%)}
 .fx-root.fx-static .fx-vig{display:block}
