@@ -1,13 +1,13 @@
-// fx-build: fx-diag-1
+// fx-build: fx-diag-2
 'use strict';
 // 演出の比較ページ（確認用）。本編の進行・セーブ・既読・結末には触れない（localStorage を使わない）。
 (function(){
  const SAMPLE='確認用のサンプル文です。効果の見え方を比べるための文章で、本編の台詞ではありません。';
  const TYPE_MS=40;
- const LEVELS=['none','weak','mid','strong'],BGS=['dark','light'],EFFECTS=['all','noise','static'];
+ const LEVELS=['none','weak','mid','strong'],BGS=['dark','light'],EFFECTS=['all','noise','static'],NOPS=[100,75,50,25];
  const q=new URLSearchParams(location.search);
  const pick=(v,list,def)=>list.includes(v)?v:def;
- const state={level:pick(q.get('level'),LEVELS,'mid'),bg:pick(q.get('bg'),BGS,'dark'),effect:pick(q.get('effect'),EFFECTS,'all'),timing:'now'};
+ const state={level:pick(q.get('level'),LEVELS,'weak'),bg:pick(q.get('bg'),BGS,'dark'),effect:pick(q.get('effect'),EFFECTS,'all'),timing:'now',nop:NOPS.includes(Number(q.get('nopacity')))?Number(q.get('nopacity')):50};
  const $=id=>document.getElementById(id);
  const app=$('app'),prose=$('prose'),panel=$('fxPanel'),openBtn=$('fxOpen'),root=app;
  let typeTimer=null,loopOn=false,serve=null;
@@ -73,6 +73,7 @@
   const svHtml=sv['effects-preview.html']?sv['effects-preview.html'].mark:'確認中';
   const svCss=sv['effects.css']?sv['effects.css'].mark:'確認中';
   const cssBuild=loadedCssBuild();
+  const nopRow=row('ノイズ不透明度 倍率',(d.noiseScale*100)+'%（ノイズ層のみ）');
   const parts=[
    row('演出JS 実装版',esc(Dream.BUILD)),
    row('HTML 期待版',esc(expectedJs)+' ／ 読込HTML '+esc(htmlVersion)),
@@ -91,6 +92,7 @@
    row('親（#app）',('overflow '+d.appOverflow+' ／ position '+d.appPosition)),
    row('中心点で上にある要素',esc(d.hitTop)),
    row('静的効果のクラス',d.staticClass?'あり':'なし'),
+   nopRow,
    row('読込リソース',esc(resourceSummary()).replace(/\n/g,'<br>'))
   ];
   $('dgStatus').innerHTML=parts.join('');
@@ -98,7 +100,8 @@
 
  function syncUrl(){
   const u=new URL(location.href);
-  u.searchParams.set('v','fx-diag-1');
+  u.searchParams.set('v','fx-diag-2');
+  u.searchParams.set('nopacity',String(state.nop));
   u.searchParams.set('level',state.level);u.searchParams.set('bg',state.bg);u.searchParams.set('effect',state.effect);
   history.replaceState(null,'',u.pathname+u.search);
   $('fxUrl').value=u.href;
@@ -107,6 +110,7 @@
   document.querySelectorAll('#fxLevels button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.level===state.level)));
   document.querySelectorAll('#fxBg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.bg===state.bg)));
   document.querySelectorAll('#fxTiming button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.timing===state.timing)));
+  document.querySelectorAll('#fxNop button').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.nop)===state.nop)));
   app.dataset.bg=state.bg;
  }
  function syncState(){
@@ -118,7 +122,7 @@
   $('fxPause').disabled=!(s.mode==='playing'||s.mode==='paused');
   $('fxPause').textContent=s.mode==='paused'?'再開':'一時停止';
   $('fxPause').setAttribute('aria-pressed',String(s.mode==='paused'));
-  $('fxStill').disabled=!s.active||s.level==='none';
+  $('fxStill').disabled=s.level==='none';
   renderDiag();
  }
  app.addEventListener('fxstatechange',()=>{if(Dream.state().mode==='idle')loopOn=false;syncState();});
@@ -173,6 +177,7 @@
 
  document.querySelectorAll('#fxLevels button').forEach(b=>b.addEventListener('click',()=>{state.level=b.dataset.level;loopOn=false;Dream.setLevel(state.level);Dream.setStatic($('fxStatic').checked);syncButtons();syncUrl();syncState();}));
  document.querySelectorAll('#fxBg button').forEach(b=>b.addEventListener('click',()=>{state.bg=b.dataset.bg;syncButtons();syncUrl();}));
+ document.querySelectorAll('#fxNop button').forEach(b=>b.addEventListener('click',()=>{state.nop=Number(b.dataset.nop);Dream.setNoiseScale(state.nop/100);syncButtons();syncUrl();syncState();}));
  document.querySelectorAll('#fxTiming button').forEach(b=>b.addEventListener('click',()=>{state.timing=b.dataset.timing;syncButtons();}));
  $('fxStatic').addEventListener('change',e=>{Dream.setStatic(e.target.checked);syncState();});
  $('fxGrain').addEventListener('change',e=>{if(!e.target.checked){Dream.stopNoise();loopOn=false;}syncState();});
@@ -185,11 +190,12 @@
  $('dgSolid').addEventListener('click',diagSolid);
  $('dgStill').addEventListener('click',diagStill);
  $('dgClear').addEventListener('click',diagClear);
- $('dgToggle').addEventListener('click',()=>{const dock=$('fxDock');const c=dock.classList.toggle('fx-collapsed');$('dgToggle').textContent=c?'状態を開く':'状態を閉じる';$('dgToggle').setAttribute('aria-expanded',String(!c));});
+ $('dgToggle').addEventListener('click',()=>{const dock=$('fxDock');const c=dock.classList.toggle('fx-collapsed');$('dgToggle').textContent=c?'診断詳細を開く':'診断詳細を閉じる';$('dgToggle').setAttribute('aria-expanded',String(!c));});
  openBtn.addEventListener('click',()=>{panel.hidden=false;document.body.classList.add('panel-open');openBtn.setAttribute('aria-expanded','true');});
  $('fxClose').addEventListener('click',()=>{panel.hidden=true;document.body.classList.remove('panel-open');openBtn.setAttribute('aria-expanded','false');});
  Dream.setLevel(state.level);
  Dream.setStatic(true);
+ Dream.setNoiseScale(state.nop/100);
  Dream.onReduceChange(syncReduce);
  bootOk();
  syncReduce();syncButtons();syncUrl();syncState();

@@ -1,4 +1,4 @@
-/* fx-diag-1 : 演出の比較ページ専用。本編の見え方は変えない（index.html は読み込まない）。 */
+/* fx-diag-2 : 演出の比較ページ専用。本編の見え方は変えない（index.html は読み込まない）。 */
 html,body{height:100%;overflow:hidden}
 body{margin:0}
 #app{position:relative;overflow:hidden;transition:margin-right .25s ease}
@@ -41,5 +41,5 @@ body{margin:0}
  body.panel-open #app{margin-right:300px}
  body.panel-open .fx-dock{right:300px}
 }
-.fx-dock.fx-collapsed .fx-status,.fx-dock.fx-collapsed .fx-ver,.fx-dock.fx-collapsed #fxBoot{display:none}
+.fx-dock.fx-collapsed .fx-status{display:none}
 #dgToggle{min-height:34px;padding:6px 10px;border:1px solid #8c8266;background:transparent;color:var(--paper);font:12px sans-serif}

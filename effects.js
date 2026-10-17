@@ -4,14 +4,16 @@
 // モードは排他（idle / playing / paused / still / solid / diagstill）。切り替えの前に必ず前の状態を止める。
 // タイマーは最大1本。確認ページ限定の単色・静止表示は、操作するまで消えない（タイマーを使わない）。
 (function(){
-const BUILD='fx-diag-1';
+const BUILD='fx-diag-2';
 const LEVELS={
  none:{label:'効果なし',vig:0,blurBg:0,blurFg:0,peak:0,cell:0,density:0},
  weak:{label:'弱',vig:.28,blurBg:.5,blurFg:.3,peak:.4,cell:3,density:.10},
  mid:{label:'中',vig:.5,blurBg:1.2,blurFg:.8,peak:.7,cell:4,density:.18},
  strong:{label:'強',vig:.7,blurBg:2.2,blurFg:1.6,peak:.9,cell:6,density:.28}
 };
-const DEFAULT='mid';
+const DEFAULT='weak';
+const NOISE_SCALES=[1,.75,.5,.25];       // ノイズ層だけの不透明度倍率（現在の弱を100%とする）
+const DEFAULT_NOISE_SCALE=.5;
 const DURATION=1000,GAP=350,FRAME=90;
 const STILL_CELL=6,STILL_DENSITY=.5;   // 確認用の静止ノイズ（粗い白黒の粒）
 const motionQuery=window.matchMedia?window.matchMedia('(prefers-reduced-motion: reduce)'):null;
@@ -19,6 +21,7 @@ const motionQuery=window.matchMedia?window.matchMedia('(prefers-reduced-motion: 
 let root=null,layers={},level=DEFAULT,staticOn=true,colorOn=false,active=false,suppressed=false;
 let mode='idle',timer=null,cycleStart=0,pausedElapsed=0,loop=false,cw=0,ch=0,bufs={},cellNow=4;
 let drawCount=0,lastDraw='なし',lastError='なし',ctxOk=null,lastCellCss=0;
+let noiseScale=DEFAULT_NOISE_SCALE,lastBase=null;   // lastBase: 直前の描画の基準不透明度（倍率を掛ける前）。診断表示では null
 
 function emit(){if(root)root.dispatchEvent(new CustomEvent('fxstatechange',{detail:{mode,level,active}}));}
 function ensureSize(cell){
@@ -32,6 +35,7 @@ function ensureSize(cell){
 }
 function clearLayers(){
  for(const k in layers){const c=layers[k];const x=c.getContext('2d');if(x)x.clearRect(0,0,c.width,c.height);c.style.opacity='0';}
+ lastBase=null;
 }
 // すべての描画はここを通る。エラーは記録し、呼び出し側へ例外を投げない。
 function paint(name,fn){
@@ -71,10 +75,11 @@ function drawFrame(p){
  if(e<=0||L.density===0){clearLayers();return;}
  ensureSize();
  paint('動くノイズ',()=>paintNoise('main',L.density*e));
- layers.main.style.opacity=(L.peak*e).toFixed(3);
+ lastBase=L.peak*e;
+ layers.main.style.opacity=(lastBase*noiseScale).toFixed(3);
  if(colorOn){
   paint('色ずれ',()=>{paintNoise('red',L.density*e*.6);paintNoise('cyan',L.density*e*.6);});
-  layers.red.style.opacity=(L.peak*e).toFixed(3);layers.cyan.style.opacity=(L.peak*e).toFixed(3);
+  layers.red.style.opacity=(lastBase*noiseScale).toFixed(3);layers.cyan.style.opacity=(lastBase*noiseScale).toFixed(3);
  }else{
   for(const k of ['red','cyan']){const c=layers[k];const x=c.getContext('2d');if(x)x.clearRect(0,0,c.width,c.height);c.style.opacity='0';}
  }
@@ -118,6 +123,15 @@ const Dream={
   mode='idle';applyStatic();emit();return name;
  },
  setStatic(on){staticOn=!!on;applyStatic();},
+ setNoiseScale(v){
+  const n=Number(v);
+  noiseScale=NOISE_SCALES.includes(n)?n:DEFAULT_NOISE_SCALE;
+  // 描き直さずに不透明度だけ更新する（同じ粒の状態で比べられる）
+  if(lastBase!==null){layers.main.style.opacity=(lastBase*noiseScale).toFixed(3);if(colorOn){layers.red.style.opacity=(lastBase*noiseScale).toFixed(3);layers.cyan.style.opacity=(lastBase*noiseScale).toFixed(3);}}
+  emit();return noiseScale;
+ },
+ noiseScale(){return noiseScale;},
+ NOISE_SCALES,DEFAULT_NOISE_SCALE,
  setColorShift(on){colorOn=!!on;if(!colorOn)for(const k of ['red','cyan']){const c=layers[k];if(c){const x=c.getContext('2d');if(x)x.clearRect(0,0,c.width,c.height);c.style.opacity='0';}}},
  activate(){active=true;applyStatic();emit();},
  deactivate(){halt();active=false;mode='idle';applyStatic();emit();},
@@ -146,7 +160,7 @@ const Dream={
  },
  // ---- 確認ページ用の診断表示（操作するまで消えない。タイマーなし） ----
  solid(){
-  halt();active=true;suppressed=true;ensureSize(STILL_CELL);
+  halt();active=true;suppressed=true;ensureSize(STILL_CELL);lastBase=null;
   paint('単色(マゼンタ)',()=>{
    layers.main.style.opacity='1';
    fillPixels('main',px=>{px.fill(0xFFFF00FF);});
@@ -155,7 +169,7 @@ const Dream={
   applyStatic();mode='solid';emit();return true;
  },
  coarseStill(){
-  halt();active=true;suppressed=true;ensureSize(STILL_CELL);
+  halt();active=true;suppressed=true;ensureSize(STILL_CELL);lastBase=null;
   paint('静止ノイズ(診断・粗い白黒)',()=>{
    layers.main.style.opacity='1';
    paintNoise('main',STILL_DENSITY);
@@ -168,7 +182,7 @@ const Dream={
  isActive(){return active;},
  // 診断用：表示の状態を実測値で返す（数値が動いていることだけで「見えている」と判断しないため、位置・重なり・合成も返す）
  diagnostics(){
-  const out={build:BUILD,mode,level,active,suppressed,reduced:this.reduced(),drawCount,lastDraw,lastError,ctxOk};
+  const out={build:BUILD,mode,level,active,suppressed,reduced:this.reduced(),drawCount,lastDraw,lastError,ctxOk,noiseScale};
   const m=layers.main;
   if(!m)return out;
   const r=m.getBoundingClientRect();const cs=getComputedStyle(m);
