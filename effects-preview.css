@@ -27,3 +27,9 @@ body{margin:0}
 }
 /* 縦向きでも操作できるように（本編の横向き専用の表示制御は、この確認ページでは使わない）。 */
 @media(orientation:portrait){#app{visibility:visible}}
+.fx-state{margin:0;font:13px sans-serif;color:#f3ead0}
+#fxLoop[aria-pressed=true],#fxPause[aria-pressed=true]{background:#c9b88733;border-color:var(--gold)}
+#fxPause:disabled,#fxStill:disabled{opacity:.4}
+.fx-actions{flex-wrap:wrap}
+.fx-play{position:sticky;top:-12px;margin-top:0;padding:6px 0 8px;background:#0e1b24f7;z-index:2;border-bottom:1px solid #b8a87a33}
+.fx-play .fx-actions button{min-height:36px;padding:6px 10px;font-size:12px}
