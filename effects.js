@@ -1,8 +1,10 @@
 'use strict';
 // 演出層（画像とは独立）。本編と確認ページで共通に使う。
-// 粒状ノイズは低解像度 Canvas を毎フレーム描き直す（粒の位置そのものが動く）。タイマーは1本だけで、
-// 開始・一時停止・再開・停止のたびに止めてから始める。ページが隠れたら止める。
+// 描画は paint() に集約し、描画回数・最後の描画・エラー・2Dコンテキストの取得結果を記録する。
+// モードは排他（idle / playing / paused / still / solid / diagstill）。切り替えの前に必ず前の状態を止める。
+// タイマーは最大1本。確認ページ限定の単色・静止表示は、操作するまで消えない（タイマーを使わない）。
 (function(){
+const BUILD='fx-diag-1';
 const LEVELS={
  none:{label:'効果なし',vig:0,blurBg:0,blurFg:0,peak:0,cell:0,density:0},
  weak:{label:'弱',vig:.28,blurBg:.5,blurFg:.3,peak:.4,cell:3,density:.10},
@@ -10,41 +12,53 @@ const LEVELS={
  strong:{label:'強',vig:.7,blurBg:2.2,blurFg:1.6,peak:.9,cell:6,density:.28}
 };
 const DEFAULT='mid';
-const DURATION=1000;   // 1回の発火（ms）。終わり際に消える
-const GAP=350;         // 連続再生で次の発火までの間（ms）
-const FRAME=90;        // 粒の描き直し間隔（ms）。約11fps
+const DURATION=1000,GAP=350,FRAME=90;
+const STILL_CELL=6,STILL_DENSITY=.5;   // 確認用の静止ノイズ（粗い白黒の粒）
 const motionQuery=window.matchMedia?window.matchMedia('(prefers-reduced-motion: reduce)'):null;
 
-let root=null,layers={},level=DEFAULT,staticOn=true,colorOn=false,active=false;
-let mode='idle',timer=null,cycleStart=0,pausedElapsed=0,loop=false,cw=0,ch=0,bufs={};
+let root=null,layers={},level=DEFAULT,staticOn=true,colorOn=false,active=false,suppressed=false;
+let mode='idle',timer=null,cycleStart=0,pausedElapsed=0,loop=false,cw=0,ch=0,bufs={},cellNow=4;
+let drawCount=0,lastDraw='なし',lastError='なし',ctxOk=null,lastCellCss=0;
 
 function emit(){if(root)root.dispatchEvent(new CustomEvent('fxstatechange',{detail:{mode,level,active}}));}
-function ensureSize(){
- const L=LEVELS[level];const cell=L.cell||4;
+function ensureSize(cell){
+ const c=cell||LEVELS[level].cell||4;
  const W=Math.max(1,root.clientWidth),H=Math.max(1,root.clientHeight);
- const nw=Math.ceil(W/cell),nh=Math.ceil(H/cell);
+ const nw=Math.ceil(W/c),nh=Math.ceil(H/c);
+ cellNow=c;
  if(nw===cw&&nh===ch)return;
  cw=nw;ch=nh;bufs={};
  for(const k in layers){layers[k].width=cw;layers[k].height=ch;}
 }
 function clearLayers(){
- for(const k in layers){const c=layers[k];c.getContext('2d').clearRect(0,0,c.width,c.height);c.style.opacity='0';}
+ for(const k in layers){const c=layers[k];const x=c.getContext('2d');if(x)x.clearRect(0,0,c.width,c.height);c.style.opacity='0';}
 }
-// 1枚分の粒を描く。main は白か黒の粒、red / cyan は色ずれ用の粒。
-function paint(kind,dens){
- const c=layers[kind];const ctx=c.getContext('2d');
+// すべての描画はここを通る。エラーは記録し、呼び出し側へ例外を投げない。
+function paint(name,fn){
+ try{
+  const r=fn();drawCount++;lastDraw=name+' #'+drawCount;return r;
+ }catch(e){lastError=name+': '+(e&&e.message?e.message:String(e));return false;}
+}
+function ctxFor(kind){
+ const c=layers[kind];const x=c.getContext('2d');
+ if(kind==='main')ctxOk=!!x;
+ return x;
+}
+function fillPixels(kind,fn){
+ const c=layers[kind];const x=ctxFor(kind);if(!x)throw new Error('2Dコンテキストを取得できません');
  let buf=bufs[kind];
- if(!buf||buf.width!==cw||buf.height!==ch){buf=ctx.createImageData(cw,ch);bufs[kind]=buf;}
- const px=new Uint32Array(buf.data.buffer);const n=px.length;
- const on=kind==='red'?0xFF0000FF:kind==='cyan'?0xFFFFFF00:0;
- for(let i=0;i<n;i++){
-  if(Math.random()<dens){
-   px[i]=on||(Math.random()<.5?0xFFFFFFFF:0xFF000000);
-  }else px[i]=0;
- }
- ctx.putImageData(buf,0,0);
+ if(!buf||buf.width!==cw||buf.height!==ch){buf=x.createImageData(cw,ch);bufs[kind]=buf;}
+ const px=new Uint32Array(buf.data.buffer);
+ fn(px);
+ x.putImageData(buf,0,0);
 }
-// 粒の密度と濃さは、発火の中の位置（0〜1）で決まる。立ち上がりは速く、終わり際に静かに消える。
+// 動くノイズの1枚（白か黒の粒を、密度で置く）
+function paintNoise(kind,dens){
+ fillPixels(kind,px=>{
+  const on=kind==='red'?0xFF0000FF:kind==='cyan'?0xFFFFFF00:0;
+  for(let i=0;i<px.length;i++){px[i]=Math.random()<dens?(on||(Math.random()<.5?0xFFFFFFFF:0xFF000000)):0;}
+ });
+}
 function envelope(p){
  if(p<=0||p>=1)return 0;
  if(p<.12)return p/.12;
@@ -52,17 +66,17 @@ function envelope(p){
  const q=(1-p)/.5;return q*q*(3-2*q);
 }
 function drawFrame(p){
- ensureSize();
  const L=LEVELS[level];
  const e=envelope(p);
  if(e<=0||L.density===0){clearLayers();return;}
- paint('main',L.density*e);
+ ensureSize();
+ paint('動くノイズ',()=>paintNoise('main',L.density*e));
  layers.main.style.opacity=(L.peak*e).toFixed(3);
  if(colorOn){
-  paint('red',L.density*e*.6);paint('cyan',L.density*e*.6);
+  paint('色ずれ',()=>{paintNoise('red',L.density*e*.6);paintNoise('cyan',L.density*e*.6);});
   layers.red.style.opacity=(L.peak*e).toFixed(3);layers.cyan.style.opacity=(L.peak*e).toFixed(3);
  }else{
-  for(const k of ['red','cyan']){layers[k].getContext('2d').clearRect(0,0,layers[k].width,layers[k].height);layers[k].style.opacity='0';}
+  for(const k of ['red','cyan']){const c=layers[k];const x=c.getContext('2d');if(x)x.clearRect(0,0,c.width,c.height);c.style.opacity='0';}
  }
 }
 function stopTimer(){if(timer!==null){clearInterval(timer);timer=null;}}
@@ -73,24 +87,20 @@ function tick(){
   if(!loop){finish();return;}
   cycleStart=performance.now();t=0;
  }
- drawFrame(t/DURATION);
+ paint('動くノイズ(フレーム)',()=>drawFrame(t/DURATION));
 }
-function finish(){stopTimer();clearLayers();mode='idle';emit();}
-function start(isLoop){
- stopTimer();
- if(!active||Dream.noiseAvailable()===false)return false;
- loop=isLoop;cycleStart=performance.now();mode=isLoop?'playing':'playing';
- timer=setInterval(tick,FRAME);tick();emit();return true;
-}
-function applyStatic(){root.classList.toggle('fx-static',active&&staticOn&&level!=='none');}
+function finish(){stopTimer();clearLayers();setMode('idle');}
+function setMode(m){mode=m;applyStatic();emit();}
+function applyStatic(){root.classList.toggle('fx-static',active&&staticOn&&!suppressed&&level!=='none');}
+// 前の状態を完全に止める（タイマー・描画・診断表示）。すべての操作の最初に呼ぶ。
+function halt(){stopTimer();clearLayers();suppressed=false;}
 
 const Dream={
- LEVELS,DEFAULT,DURATION,GAP,FRAME,
+ BUILD,LEVELS,DEFAULT,DURATION,GAP,FRAME,
  init(rootEl){
   root=rootEl;
   root.querySelectorAll('canvas.fx-noise').forEach(c=>{layers[c.dataset.kind]=c;});
   this.setLevel(DEFAULT);
-  // 画面が隠れたら連続描画を止める（復帰しても自動では再開しない）
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&mode==='playing')this.pause();});
   window.addEventListener('pagehide',()=>{if(mode==='playing')this.pause();});
  },
@@ -98,39 +108,84 @@ const Dream={
  noiseAvailable(){return !this.reduced()&&level!=='none';},
  onReduceChange(fn){if(motionQuery)motionQuery.addEventListener('change',()=>fn(Dream.reduced()));},
  level(){return level;},
- state(){return{mode,level,active,colorOn,staticOn};},
+ state(){return{mode,level,active,colorOn,staticOn,suppressed};},
  setLevel(name){
   if(!Object.prototype.hasOwnProperty.call(LEVELS,name))name=DEFAULT;
-  stopTimer();clearLayers();cw=0;ch=0;
-  level=name;const L=LEVELS[name];
+  halt();level=name;const L=LEVELS[name];
   root.style.setProperty('--fx-vig',L.vig);
   root.style.setProperty('--fx-blur-bg',L.blurBg+'px');
   root.style.setProperty('--fx-blur-fg',L.blurFg+'px');
   mode='idle';applyStatic();emit();return name;
  },
  setStatic(on){staticOn=!!on;applyStatic();},
- setColorShift(on){colorOn=!!on;if(!colorOn)for(const k of ['red','cyan']){if(layers[k]){layers[k].getContext('2d').clearRect(0,0,layers[k].width,layers[k].height);layers[k].style.opacity='0';}}},
+ setColorShift(on){colorOn=!!on;if(!colorOn)for(const k of ['red','cyan']){const c=layers[k];if(c){const x=c.getContext('2d');if(x)x.clearRect(0,0,c.width,c.height);c.style.opacity='0';}}},
  activate(){active=true;applyStatic();emit();},
- deactivate(){active=false;stopTimer();clearLayers();mode='idle';applyStatic();emit();},
- // 1回だけ再生する（終わり際に消える）
- fireOnce(){return start(false);},
- // 連続プレビュー（停止・一時停止まで繰り返す）
- startLoop(){return start(true);},
+ deactivate(){halt();active=false;mode='idle';applyStatic();emit();},
+ fireOnce(){return this._start(false);},
+ startLoop(){return this._start(true);},
+ _start(isLoop){
+  halt();
+  if(!active||!this.noiseAvailable())return false;
+  loop=isLoop;cycleStart=performance.now();mode='playing';
+  timer=setInterval(tick,FRAME);tick();emit();return true;
+ },
  pause(){
   if(mode!=='playing')return;
-  pausedElapsed=performance.now()-cycleStart;stopTimer();mode='paused';emit();
+  pausedElapsed=performance.now()-cycleStart;stopTimer();setMode('paused');
  },
  resume(){
   if(mode!=='paused'||!active)return;
   cycleStart=performance.now()-pausedElapsed;timer=setInterval(tick,FRAME);mode='playing';tick();emit();
  },
- stopNoise(){stopTimer();clearLayers();if(mode!=='idle'){mode='idle';emit();}},
- // 動かないノイズを1枚だけ表示する（確認用・動く効果を省くときの静止表示）
+ stopNoise(){halt();if(mode!=='idle'){mode='idle';applyStatic();emit();}},
+ // 動かないノイズを1枚（通常の強度）
  drawStill(){
   if(!active||level==='none')return false;
-  stopTimer();drawFrame(0.3);mode='still';emit();return true;
+  halt();ensureSize();paint('静止ノイズ(通常)',()=>{drawFrame(0.3);});
+  setMode('still');return true;
  },
- isGrainRunning(){return mode==='playing';}
+ // ---- 確認ページ用の診断表示（操作するまで消えない。タイマーなし） ----
+ solid(){
+  halt();active=true;suppressed=true;ensureSize(STILL_CELL);
+  paint('単色(マゼンタ)',()=>{
+   layers.main.style.opacity='1';
+   fillPixels('main',px=>{px.fill(0xFFFF00FF);});
+  });
+  for(const k of ['red','cyan']){const c=layers[k];const x=c.getContext('2d');if(x)x.clearRect(0,0,c.width,c.height);c.style.opacity='0';}
+  applyStatic();mode='solid';emit();return true;
+ },
+ coarseStill(){
+  halt();active=true;suppressed=true;ensureSize(STILL_CELL);
+  paint('静止ノイズ(診断・粗い白黒)',()=>{
+   layers.main.style.opacity='1';
+   paintNoise('main',STILL_DENSITY);
+  });
+  for(const k of ['red','cyan']){const c=layers[k];const x=c.getContext('2d');if(x)x.clearRect(0,0,c.width,c.height);c.style.opacity='0';}
+  applyStatic();mode='diagstill';emit();return true;
+ },
+ clearAll(){halt();active=false;mode='idle';applyStatic();emit();},
+ isGrainRunning(){return mode==='playing';},
+ isActive(){return active;},
+ // 診断用：表示の状態を実測値で返す（数値が動いていることだけで「見えている」と判断しないため、位置・重なり・合成も返す）
+ diagnostics(){
+  const out={build:BUILD,mode,level,active,suppressed,reduced:this.reduced(),drawCount,lastDraw,lastError,ctxOk};
+  const m=layers.main;
+  if(!m)return out;
+  const r=m.getBoundingClientRect();const cs=getComputedStyle(m);
+  out.canvasInternal=[m.width,m.height];
+  out.cellCss=cellNow;
+  out.canvasRect=[Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)];
+  out.canvasOpacity=cs.opacity;out.canvasVisibility=cs.visibility;out.canvasDisplay=cs.display;out.canvasBlend=cs.mixBlendMode;
+  const lay=m.parentElement;const ls=getComputedStyle(lay);const lr=lay.getBoundingClientRect();
+  out.layerRect=[Math.round(lr.left),Math.round(lr.top),Math.round(lr.width),Math.round(lr.height)];
+  out.layerZ=ls.zIndex;out.layerOverflow=ls.overflow;out.layerPointer=ls.pointerEvents;
+  out.appOverflow=getComputedStyle(root).overflow;out.appPosition=getComputedStyle(root).position;
+  out.staticClass=root.classList.contains('fx-static');
+  // 中心点で、表示層より上にある要素（タップを受ける要素）
+  const top=document.elementFromPoint(window.innerWidth/2,window.innerHeight/2);
+  out.hitTop=top?(top.id?'#'+top.id:(top.className&&String(top.className).trim()?top.tagName+'.'+String(top.className).trim().split(/\s+/)[0]:top.tagName)):'なし';
+  return out;
+ }
 };
 window.Dream=Dream;
 })();
