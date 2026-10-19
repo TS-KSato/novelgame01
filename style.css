@@ -2,6 +2,11 @@
 
 #game.has-portrait #sceneWord{opacity:0}
 /* 章名は明るい背景でも読めるよう、文字の後ろに局所的な下地を置く（背景全体は暗くしない）。 */
+/* イベントCG（cg.js）。文章欄の上の領域に収め、切り取り位置は CG ごとに指定する。CG表示中は立ち絵を隠す。 */
+.cg{position:absolute;left:0;right:0;top:0;bottom:var(--cg-clear,200px);z-index:1;pointer-events:none;overflow:hidden;background:#05090cf2}
+.cg img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 52%}
+body.cg-on #portraits{visibility:hidden}
+@media(max-height:520px){.cg{--cg-clear:150px}}
 #game .chapter{z-index:2;text-shadow:0 1px 3px #000,0 0 10px #000;padding:4px 12px 4px 8px;border-radius:2px;background:linear-gradient(90deg,#0a151bdd,#0a151bcc 75%,#0a151bb3)}
 #game #dialogue{z-index:2}
 #game .gamebar{z-index:3;text-shadow:0 1px 4px #000}
