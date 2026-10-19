@@ -4,13 +4,13 @@
 #preview.bg-dark{background:#0b161d}
 #preview.bg-light{background:#e9e7dc}
 #preview.bg-checker{background-color:#d6d6d2;background-image:conic-gradient(#9b9b97 25%,transparent 0 50%,#9b9b97 0 75%,transparent 0);background-size:24px 24px}
-#preview:not(.bg-game):not(.bg-town_day) .scenery,#preview:not(.bg-game):not(.bg-town_day) .veil{display:none}
+#preview:not(.bg-game):not(.bg-town_day):not(.bg-town_day_repaint) .scenery,#preview:not(.bg-game):not(.bg-town_day):not(.bg-town_day_repaint) .veil{display:none}
 #preview.mode-full #dialogue,#preview.mode-full .chapter{display:none}
 #preview.mode-full .portrait{filter:none}
 #preview.bg-light .portrait{filter:drop-shadow(0 6px 16px #0003)}
 #preview.bg-light .portrait.is-dim{filter:drop-shadow(0 6px 16px #0003) brightness(.8)}
 #preview.bg-light #stage .chapter{color:#2b2f2c}
-#preview:not(.bg-game):not(.bg-town_day) #game .chapter{text-shadow:none}
+#preview:not(.bg-game):not(.bg-town_day):not(.bg-town_day_repaint) #game .chapter{text-shadow:none}
 #game{background:none}
 #hint{position:absolute;left:0;right:0;top:52px;text-align:center;font:11px sans-serif;color:#d9c79c;text-shadow:0 1px 6px #000;pointer-events:none;z-index:6}
 @media(orientation:landscape){#hint{display:none}}

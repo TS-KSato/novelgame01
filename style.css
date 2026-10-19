@@ -87,3 +87,4 @@ body.dream-on #portraits{filter:blur(.4px)}
 body.dream-on .dream{display:block}
 /* 仮配置の背景（昼の商業通り）。画像が読めない場合は既存の背景色のまま。本文・立ち絵の操作には影響しない。 */
 body.bg-town-day .scenery{background-image:url('assets/backgrounds/town_day.png')}
+body.bg-town-day-repaint .scenery{background-image:url('assets/backgrounds/town_day_repaint.png')}
