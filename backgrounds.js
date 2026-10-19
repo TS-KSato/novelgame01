@@ -2,6 +2,8 @@
 // 背景の定義とページ別の指定。本編（app.js）と立ち絵の確認ページ（character-preview.js）で共有する。
 // 指定は場面ID→[開始行, 終了行, 背景名]（行は STORY の lines の添字・両端を含む）。指定のない行は既定の背景（cathedral）。
 // 背景は必要になった時だけ読み込む。起動時の一括読み込みはしない。画像は cover で表示し、縦横比は変えない。
+// 画像を差し替えた時は BG_VERSION を上げる（同じパスでもブラウザが新しい画像を取り直す）。
+const BG_VERSION='2';
 const BACKGROUNDS={
   cathedral:'assets/cathedral.webp',
   arena_day:'assets/backgrounds/arena_day.webp',
@@ -34,10 +36,12 @@ const BACKGROUNDS={
   town_day:'assets/backgrounds/town_day.webp',
   town_gate_closed_day:'assets/backgrounds/town_gate_closed_day.webp',
   war_road_day:'assets/backgrounds/war_road_day.webp',
-};
+};for(const k of Object.keys(BACKGROUNDS))BACKGROUNDS[k]+='?v='+BG_VERSION;
+
 // 背景名の一覧（確認ページの選択肢）。未使用の素材も含め、assets/backgrounds の webp を名前で列挙する。
 const BACKGROUND_NAMES=Object.keys(BACKGROUNDS);
 const BG_SEGMENTS={
+  'prologue':[[0,9,'tower_top_night']],
   'alley':[[0,0,'town_day'],[1,6,'orphanage_gate_day'],[7,24,'town_day']],
   'rescue':[[0,22,'town_alley_day'],[23,56,'town_day']],
   'brother':[[0,33,'road_day']],
@@ -65,7 +69,7 @@ const BG_SEGMENTS={
   'neia-defend':[[0,8,'pass_fog']],
   'neia-after':[[0,28,'pass_fog']],
   'prayer-inn':[[0,30,'inn_room_day']],
-  'prayer-weeks':[[0,0,'road_day'],[1,1,'river_crossing_day'],[2,18,'road_day'],[19,30,'inn_room_day']],
+  'prayer-weeks':[[0,0,'road_day'],[1,1,'river_crossing_day'],[2,18,'road_day'],[19,30,'inn_room_night']],
   'prayer-compare':[[0,16,'inn_room_day']],
   'prayer-method':[[0,10,'inn_room_day']],
   'prayer-stone':[[0,21,'shrine_day']],
@@ -81,18 +85,18 @@ const BG_SEGMENTS={
   'resolve':[[0,6,'camp_night'],[7,28,'camp_morning']],
   'resolve-plan':[[0,16,'camp_morning']],
   'agreement-yes':[[0,18,'capital_hall_day']],
-  'agreement-method':[[0,15,'inn_room_day']],
+  'agreement-method':[[0,13,'inn_room_day'],[14,15,'inn_room_night']],
   'agreement-no':[[0,4,'inn_room_day']],
   'alone':[[0,4,'camp_night']],
   'collapse-agreement':[[0,6,'camp_night']],
   'battle-approach':[[0,10,'tower_path_day'],[11,51,'tower_top']],
-  'battle':[[0,51,'tower_top']],
-  'end_harmony':[[0,10,'tower_top'],[11,14,'town_day'],[15,19,'mountain_hut_room'],[20,21,'town_day'],[22,23,'cottage_day'],[24,37,'mountain_hut_room']],
-  'end_sacrifice':[[0,11,'tower_top'],[12,16,'tower_path_day'],[17,18,'pass_fog'],[19,34,'town_gate_closed_day'],[35,38,'road_day']],
-  'end_collapse':[[0,12,'tower_top'],[13,14,'road_day'],[15,15,'river_bridge_day'],[16,21,'town_day'],[22,26,'inn_room_day']],
-  'end_true':[[0,21,'tower_top'],[22,22,'tower_path_day'],[23,33,'river_crossing_day'],[34,40,'river_bridge_day']],
-  'end_god':[[0,32,'tower_top'],[33,42,'pass_fog'],[43,47,'capital_office_day']],
-  'lonely':[[0,2,'town_day'],[3,8,'road_day'],[9,9,'tower_path_day'],[10,14,'tower_top'],[15,30,'road_day'],[31,34,'orphanage_gate_day'],[35,35,'road_day'],[36,38,'pass_fog']],
+  'battle':[[0,30,'tower_top'],[31,51,'tower_top_night']],
+  'end_harmony':[[0,10,'tower_top_night'],[11,14,'town_day'],[15,19,'mountain_hut_room'],[20,21,'town_day'],[22,23,'cottage_day'],[24,37,'mountain_hut_room']],
+  'end_sacrifice':[[0,11,'tower_top_night'],[12,16,'tower_path_day'],[17,18,'pass_fog'],[19,34,'town_gate_closed_day'],[35,38,'road_day']],
+  'end_collapse':[[0,12,'tower_top_night'],[13,14,'road_day'],[15,15,'river_bridge_day'],[16,21,'town_day'],[22,26,'inn_room_day']],
+  'end_true':[[0,21,'tower_top_night'],[22,22,'tower_path_day'],[23,33,'river_crossing_day'],[34,40,'river_bridge_day']],
+  'end_god':[[0,32,'tower_top_night'],[33,42,'pass_fog'],[43,47,'capital_office_day']],
+  'lonely':[[0,2,'town_day'],[3,8,'road_day'],[9,9,'tower_path_day'],[10,13,'tower_top'],[14,14,'tower_top_night'],[15,30,'road_day'],[31,34,'orphanage_gate_day'],[35,35,'road_day'],[36,38,'pass_fog']],
 };
 
 // 行の背景名（指定がなければ null = 既定の背景）
@@ -153,7 +157,7 @@ const BACKGROUND_LABELS={
   forest_path_day:'森の道（昼）',
   fort_courtyard_day:'砦の広場（昼）',
   inn_room_day:'宿の食堂（昼）',
-  inn_room_night:'夜の町通り（ファイル名 inn_room_night・未使用）',
+  inn_room_night:'宿の室内（夜）',
   memorial_day:'供養石（昼）',
   mill_day:'水車小屋（外・昼）',
   mill_room_evening:'水車小屋（内・夕）',
@@ -167,7 +171,7 @@ const BACKGROUND_LABELS={
   shrine_night:'祭場（夜）',
   tower_path_day:'塔へ続く道（昼）',
   tower_top:'塔の最上部（昼・天井なし）',
-  tower_top_night:'夜の町通り（ファイル名 tower_top_night・未使用）',
+  tower_top_night:'塔の最上部（夜・天井なし）',
   town_alley_day:'路地（昼）',
   town_day:'町（昼）',
   town_gate_closed_day:'閉じた西門（昼）',
