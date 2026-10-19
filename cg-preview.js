@@ -1,27 +1,51 @@
 'use strict';
 // CGの確認ページ。ゲームの進行・セーブには触れない（localStorage を使わず、表示は URL の指定だけで決める）。
-// URL: ?cg=riene_first_aid&scene=rescue&line=37&ui=1（ui=0 で文章欄と操作を隠し、画像だけを表示）
+// 表示は本編と同じ規則（cgFor）で決まる。文章は割り当て先の実際の本文。
+// URL: ?cg=<名前>&scene=<場面>&line=<行>&ui=1（ui=0 で文章欄だけを隠す。画像の位置と大きさは変わらない）
 const $=id=>document.getElementById(id);
 const p=new URLSearchParams(location.search);
-const sceneId=STORY[p.get('scene')]?p.get('scene'):'rescue';
-const lines=STORY[sceneId].lines;
+const names=Object.keys(CGS);
+const startOf=name=>{
+ for(const [scene,segs] of Object.entries(CG_SEGMENTS))for(const [from,,n] of segs)if(n===name)return {scene,line:from};
+ return null;
+};
+let cgSel=CGS[p.get('cg')]?p.get('cg'):names[0];
+let sceneId=STORY[p.get('scene')]?p.get('scene'):startOf(cgSel).scene;
+let lines=STORY[sceneId].lines;
 let line=Number(p.get('line'));
-if(!Number.isInteger(line)||line<0||line>=lines.length)line=(CG_SEGMENTS[sceneId]||[[0]])[0][0];
-const cgName=CGS[p.get('cg')]?p.get('cg'):(cgFor(sceneId,line)||Object.keys(CGS)[0]);
+if(!Number.isInteger(line)||line<0||line>=lines.length)line=p.get('scene')?0:startOf(cgSel).line;
 let ui=p.get('ui')!=='0';
+for(const n of names){
+ const o=document.createElement('option');
+ const s=startOf(n);
+ o.value=n;
+ o.textContent=n+'（'+s.scene+' '+(PAGE_IDS[s.scene][s.line]||'')+'〜）';
+ $('cgSel').append(o);
+}
+$('cgSel').onchange=()=>{
+ cgSel=$('cgSel').value;
+ const s=startOf(cgSel);
+ sceneId=s.scene;lines=STORY[sceneId].lines;line=s.line;
+ render();
+};
 function render(){
  const [speaker,text]=lines[line];
+ const cgNow=cgFor(sceneId,line);
+ const id=PAGE_IDS[sceneId][line]||'';
+ $('cgSel').value=cgNow||cgSel;
  $('speaker').textContent=speaker||'';
  $('prose').textContent=text;
- $('label').textContent=sceneId+' '+(PAGE_IDS[sceneId][line]||'');
+ $('label').textContent=sceneId+' '+id;
  $('app').classList.toggle('cg-only',!ui);
  $('ui').setAttribute('aria-pressed',String(ui));
  $('ui').textContent=ui?'文章欄を隠す（画像のみ）':'文章欄を表示';
- $('info').textContent='CG: '+cgName+'　'+(PAGE_IDS[sceneId][line]||'');
- const q=new URLSearchParams({cg:cgName,scene:sceneId,line:String(line),ui:ui?'1':'0'});
+ $('info').textContent=(cgNow?'CG: '+cgNow:'この行はCGの範囲外（通常背景）')+'　'+id;
+ const q=new URLSearchParams({cg:cgNow||cgSel,scene:sceneId,line:String(line),ui:ui?'1':'0'});
  history.replaceState(null,'','?'+q.toString());
- applyCG(cgName);
+ applyCG(cgNow);
 }
 $('ui').onclick=()=>{ui=!ui;render();};
-$('dialogue').onclick=()=>{if(line<lines.length-1){line++;render();}};
+$('prev').onclick=()=>{if(line>0){line--;render();}};
+$('next').onclick=()=>{if(line<lines.length-1){line++;render();}};
+$('dialogue').onclick=$('next').onclick;
 render();
