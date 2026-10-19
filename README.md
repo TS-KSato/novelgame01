@@ -42,7 +42,8 @@
 - `character-preview.html`：立ち絵の確認ページ（物語は読み込まず、進行・セーブには触れません）。
 - `assets/characters/`：立ち絵。各キャラの表情は`portraits.js`の`PORTRAITS`で定義します。
 - `assets/cathedral.webp`：背景画像。
-- `assets/backgrounds/town_day.webp`：昼の町背景（alley-001〜018 で使用）。
+- `backgrounds.js`：背景の定義（`BACKGROUNDS`）、表示名（`BACKGROUND_LABELS`）、場面と行ごとの指定（`BG_SEGMENTS`：`[開始行, 終了行, 背景名]`、行は`story.js`の添字）。背景の差し替えはここだけを変えます。
+- `assets/backgrounds/*.webp`：背景画像（場所・時間帯の名前）。`town_day.png` と `town_day_repaint.png` は旧版のため、本編からは参照しません。
 
 変更したファイルをmainへコミットすると、再公開されます。
 

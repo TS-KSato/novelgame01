@@ -10,23 +10,26 @@ for(const char of Object.keys(PORTRAITS))state.expr[char]=DEFAULT_EXPRESSION;
 const SAMPLE_NARRATION='　';
 
 // URL の character / expression を読む。定義済みの名前以外は既定値へ戻す。
-// bg は背景の種類（game / dark / light / checker / town_day）。bg=town_day_repaint は旧指定の互換として town_day と同じ表示にする。
-// duo=1 と group=riene,thug で並列表示を指定できる。
-const BG_VALUES=['game','dark','light','checker','town_day'];
+// bg は既存背景（game）・暗色・明色・市松、または背景名（assets/backgrounds の webp の名前）。bg=town_day_repaint は旧指定の互換として town_day と同じ表示にする。
+// mode は game / full / bgonly。duo=1 と group=riene,thug で並列表示を指定できる。
+const BG_KINDS=['game','dark','light','checker'];
 const BG_ALIASES={town_day_repaint:'town_day'};
+const MODES=['game','full','bgonly'];
 function readParams(){
  const p=new URLSearchParams(location.search),char=p.get('character'),expr=p.get('expression');
  if(Object.hasOwn(PORTRAITS,char))state.char=char;
  if(isPortraitExpression(state.char,expr))state.expr[state.char]=expr;
  const bg=BG_ALIASES[p.get('bg')]||p.get('bg');
- if(BG_VALUES.includes(bg))state.bg=bg;
+ if(BG_KINDS.includes(bg)||BACKGROUND_NAMES.includes(bg))state.bg=bg;
+ if(MODES.includes(p.get('mode')))state.mode=p.get('mode');
  if(p.get('duo')==='1')state.duo=true;
  const group=(p.get('group')||'').split(',').filter(c=>Object.hasOwn(PORTRAITS,c)).slice(0,GROUP_MAX);
  if(group.length)state.group=group;
 }
 function writeParams(){
  const duo=state.duo?'&duo=1&group='+state.group.join(','):'';
- try{history.replaceState(null,'','?character='+state.char+'&expression='+state.expr[state.char]+'&bg='+state.bg+duo);}catch{}
+ const mode=state.mode==='game'?'':'&mode='+state.mode;
+ try{history.replaceState(null,'','?character='+state.char+'&expression='+state.expr[state.char]+'&bg='+state.bg+mode+duo);}catch{}
 }
 
 // 画像を一度だけ読み込み、寸法・透過率を得る。失敗は ok:false で返す。
@@ -84,6 +87,9 @@ function setPressed(container,selector,match){
 }
 
 function buildControls(){
+ const bgPick=$('bgPick');
+ for(const name of BACKGROUND_NAMES){const o=document.createElement('option');o.value=name;o.textContent=BACKGROUND_LABELS[name]+'　'+name+'.webp';bgPick.append(o);}
+ bgPick.onchange=()=>{state.bg=bgPick.value;render();};
  const charSeg=$('charSeg');
  for(const [char,def] of Object.entries(PORTRAITS)){
   const b=document.createElement('button');b.type='button';b.dataset.value=char;b.textContent=def.name;
@@ -129,8 +135,9 @@ function setPanel(open){
 
 function render(){
  const preview=$('preview');
- preview.className='bg-'+state.bg+' mode-'+state.mode+(preview.classList.contains('panel-open')?' panel-open':'');
- document.body.classList.toggle('bg-town-day',state.bg==='town_day');
+ const named=BACKGROUND_NAMES.includes(state.bg);
+ preview.className='bg-'+(named?'scene':state.bg)+' mode-'+state.mode+(preview.classList.contains('panel-open')?' panel-open':'');
+ applyBackground(preview.querySelector('.scenery'),named?state.bg:null);
  const layer=$('portraits');
  layer.className='portraits mode-'+state.mode;
  const speakerName=state.speaker==='char'?PORTRAITS[state.char].name:'';
@@ -141,7 +148,8 @@ function render(){
  setPressed($('groupSeg'),'button',b=>state.group.includes(b.dataset.value));
  $('duo').checked=state.duo;
  setPressed($('modeSeg'),'button',b=>b.dataset.value===state.mode);
- setPressed($('bgSeg'),'button',b=>b.dataset.value===state.bg);
+ setPressed($('bgSeg'),'button',b=>b.dataset.value===(BG_KINDS.includes(state.bg)?state.bg:''));
+ $('bgPick').value=BACKGROUND_NAMES.includes(state.bg)?state.bg:'';
  setPressed($('speakerSeg'),'button',b=>b.dataset.value===state.speaker);
  renderExpressionChips();
  writeParams();
