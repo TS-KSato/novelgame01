@@ -80,10 +80,8 @@ body.playing #appGuide{display:none}
 @media(max-height:520px){
  #modal .modal-top{margin:-14px -20px 8px;padding:14px 20px 8px}
 }
-/* 序章の演出（prologue だけ。body.dream-on）。周辺減光と背景・立ち絵の弱いぼかしは静的。粒状ノイズは effects.js の共通処理（canvas.fx-noise）が文字表示完了時に1回だけ出す。すべて pointer-events:none。 */
+/* 序章の演出（prologue だけ。body.dream-on）。周辺減光と背景・立ち絵の弱いぼかしは静的。すべて pointer-events:none。 */
 body.dream-on .scenery{filter:blur(.6px)}
 body.dream-on #portraits{filter:blur(.4px)}
 .dream{position:absolute;inset:0;z-index:1;pointer-events:none;display:none;background:radial-gradient(ellipse 75% 70% at 50% 42%,transparent 58%,rgba(2,6,10,.5) 100%)}
 body.dream-on .dream{display:block}
-/* 序章では本文・話者名・選択肢・操作バーを演出層（z-index:1）の上に置く。ノイズとぼかしは文字の上に乗らない。 */
-body.dream-on #dialogue,body.dream-on .gamebar,body.dream-on #choices,body.dream-on .chapter,body.dream-on #sceneWord{z-index:2}

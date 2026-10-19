@@ -1,10 +1,8 @@
 'use strict';
 // 全編統合稿 v4（full-v4）。v3 からは行の位置を変えず、序章の不鮮明な台詞（V3_REPLACED）だけを扱う。旧版は FULL_MIGRATIONS → V1_TO_V2 → V2_TO_V3 → 同じ位置 の順に通す。
 const OPENING_REV='full-v4',OPENING_BACKUP_KEY='zelg-v1-backup-full-v4';
-// 序章の粒状ノイズ（確認ページで選んだ暫定設定）。背景確定後に再調整する場合は、この設定だけを変える。
-// 粒の大きさ・密度・更新間隔は effects.js の「弱」をそのまま使う。倍率は粒の不透明度だけに掛ける（静止表示の値は 0.40 × 50% = 0.20）。
-const DREAM={scene:'prologue',pages:['prologue-004','prologue-007'],level:'weak',noiseScale:.5,colorShift:false};
-let dreamPending=null,dreamFired=new Set();
+// 序章の周辺減光・ぼかし（body.dream-on）の対象場面。
+const DREAM_SCENE='prologue';
 const $=s=>document.getElementById(s),KEY='zelg-v1';let persist={seen:[],ends:[],slots:[null,null,null],auto:null,settings:{speed:38,volume:.22}},st=null,typing=null,autoTimer=null,skipTimer=null,auto=false,skip=false,full='',chars=[],at=0,ctx=null,master=null,musicTimer=null,sound=false;
 try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&Array.isArray(p.seen)&&Array.isArray(p.ends)&&Array.isArray(p.slots))persist={...persist,...p,settings:{...persist.settings,...p.settings}};}catch{}
 function toast(t){$('toast').textContent=t;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2600);}
@@ -105,18 +103,14 @@ function migrateStorage(){
 }
 function archiveState(){if(!st)return null;return{state:clone(st),time:Date.now()};}
 function checkpoint(){persist.auto=archiveState();write();}
-function stopTimers(){Dream.stopNoise();dreamPending=null;clearInterval(typing);typing=null;clearTimeout(autoTimer);clearInterval(skipTimer);skipTimer=null;auto=false;skip=false;$('auto').classList.remove('active');$('skip').classList.remove('active');}
+function stopTimers(){clearInterval(typing);typing=null;clearTimeout(autoTimer);clearInterval(skipTimer);skipTimer=null;auto=false;skip=false;$('auto').classList.remove('active');$('skip').classList.remove('active');}
 function title(){stopTimers();document.body.classList.remove('dream-on');$('game').hidden=true;$('ending').hidden=true;$('title').hidden=false;document.body.classList.remove('playing');$('continue').disabled=!persist.auto?.state;$('end-count').textContent=persist.ends.length+' / 6';}
-function start(s){stopTimers();dreamFired=new Set();st=clone(s);$('title').hidden=true;$('ending').hidden=true;$('game').hidden=false;document.body.classList.add('playing');render();}
+function start(s){stopTimers();st=clone(s);$('title').hidden=true;$('ending').hidden=true;$('game').hidden=false;document.body.classList.add('playing');render();}
 function remember(){const id=st.node+':'+st.line;if(!persist.seen.includes(id))persist.seen.push(id);}
-function complete(){clearInterval(typing);typing=null;at=chars.length;$('prose').textContent=full;remember();const dream=dreamFire();if(auto&&!(STORY[st.node].choices&&st.line===STORY[st.node].lines.length-1))autoTimer=setTimeout(next,Math.max(1800,full.length*75,dream?Dream.DURATION+100:0));}
-function render(){clearInterval(typing);clearTimeout(autoTimer);Dream.stopNoise();document.body.classList.toggle('dream-on',st.node===DREAM.scene);dreamPending=dreamWanted()?dreamKey():null;$('choices').replaceChildren();const s=STORY[st.node],line=storyLine(st.node,st.line,st);updatePortraits(st.node,st.line,line[0]);$('chapterNo').textContent=s.ch;$('chapterName').textContent=s.title;$('sceneWord').textContent=s.ch==='PROLOGUE'?'何も、終わらない。':s.title;$('speaker').textContent=line[0]||'　';full=line[1];chars=Array.from(full);at=0;$('prose').textContent='';$('page').textContent=String(st.line+1).padStart(2,'0')+' / '+String(s.lines.length).padStart(2,'0');
+function complete(){clearInterval(typing);typing=null;at=chars.length;$('prose').textContent=full;remember();if(auto&&!(STORY[st.node].choices&&st.line===STORY[st.node].lines.length-1))autoTimer=setTimeout(next,Math.max(1800,full.length*75));}
+function render(){clearInterval(typing);clearTimeout(autoTimer);document.body.classList.toggle('dream-on',st.node===DREAM_SCENE);$('choices').replaceChildren();const s=STORY[st.node],line=storyLine(st.node,st.line,st);updatePortraits(st.node,st.line,line[0]);$('chapterNo').textContent=s.ch;$('chapterName').textContent=s.title;$('sceneWord').textContent=s.ch==='PROLOGUE'?'何も、終わらない。':s.title;$('speaker').textContent=line[0]||'　';full=line[1];chars=Array.from(full);at=0;$('prose').textContent='';$('page').textContent=String(st.line+1).padStart(2,'0')+' / '+String(s.lines.length).padStart(2,'0');
 if(!st.log.length||st.log.at(-1)[1]!==full)st.log.push(line);if(st.log.length>2000)st.log.shift();checkpoint();
 if(persist.settings.speed===0||skip){complete();}else{typing=setInterval(()=>{$('prose').textContent=chars.slice(0,++at).join('');if(at>=chars.length)complete();},persist.settings.speed);}}
-// 序章の粒状ノイズは、対象の行の文字表示が完了した時（タップで一括表示した場合も含む）に1回だけ出す。
-function dreamKey(){return st.node+':'+st.line;}
-function dreamWanted(){return !skip&&st.node===DREAM.scene&&DREAM.pages.includes(PAGE_IDS[st.node][st.line])&&!dreamFired.has(dreamKey());}
-function dreamFire(){const k=dreamKey();if(dreamPending!==k)return false;dreamPending=null;dreamFired.add(k);return Dream.fireOnce();}
 function next(){if($('modal').open||$('game').hidden||!st)return;if(typing){complete();return;}const s=STORY[st.node];if(st.line<s.lines.length-1){st.line++;render();return;}if(s.choices){if($('choices').childElementCount)return;clearTimeout(autoTimer);setPortraitChoice(true);s.choices.forEach((c,i)=>{const b=document.createElement('button');b.textContent=c.text;const sm=document.createElement('small');sm.textContent=String(i+1).padStart(2,'0')+' →';b.append(sm);b.onclick=()=>{stopTimers();for(const[k,v]of Object.entries(c.rel))st.rel[k]=(st.rel[k]||0)+v;for(const f of c.fragments)if(!st.fragments.includes(f)){st.fragments.push(f);toast('記憶の断片を入手しました');}Object.assign(st.flags,c.flags);go(c.to);};$('choices').append(b);});return;}go(s.next);}
 function go(id){id=resolveStoryTarget(id,st);if(id==='$resolve'){go('end_'+resolveEnding(st));return;}if(id.startsWith('$')){finish(id.slice(1));return;}st.node=id;st.line=0;render();}
 function finish(id){stopTimers();if(!persist.ends.includes(id))persist.ends.push(id);write();$('game').hidden=true;$('ending').hidden=false;const e=ENDINGS[id];$('ending').innerHTML='<div><div class="eyebrow">ENDING '+e.no+' / VI</div><div class="muted">'+e.label+'</div><h2>'+e.name+'</h2><p>'+e.desc+'</p><p class="muted">'+e.hint+'</p><button class="btn" id="again">もう一度、旅をする</button><button class="btn" id="endHome">タイトルへ</button></div>';$('again').onclick=()=>start(fresh());$('endHome').onclick=title;}
@@ -160,7 +154,5 @@ function appGuide(){
  modal('ブラウザの操作欄なしで遊ぶ',body);
 }
 $('appGuide').onclick=appGuide;
-// 序章の粒状ノイズは共通の演出処理（effects.js）を使う。周辺減光と背景・立ち絵のぼかしは style.css の body.dream-on が担う。
-Dream.init($('app'));Dream.setLevel(DREAM.level);Dream.setNoiseScale(DREAM.noiseScale);Dream.setColorShift(DREAM.colorShift);Dream.setStatic(false);Dream.activate();
 migrateStorage();
 title();
