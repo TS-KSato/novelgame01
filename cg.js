@@ -1,7 +1,7 @@
 'use strict';
 // イベントCGの定義と表示範囲。背景（backgrounds.js）とは独立しており、CG表示中は立ち絵を隠す（stage.js の指定は変えない）。
 // 指定は場面ID→[開始行, 終了行, CG名]（行は STORY の lines の添字・両端を含む）。
-// 表示は画面全体の CG 層に、文章欄の上へ収まる画像の帯として出す（大きさと位置は style.css の .cg）。画像は切り取らない。
+// 表示は通常背景と同じ画面全体（style.css の .cg：cover）。文章欄と操作UIはその上に重なる。
 const CGS={
   riene_first_aid:{src:'assets/cg/riene_first_aid.webp?v=1',alt:'傷を支えるリーネ'},
 };
