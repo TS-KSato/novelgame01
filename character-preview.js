@@ -10,13 +10,16 @@ for(const char of Object.keys(PORTRAITS))state.expr[char]=DEFAULT_EXPRESSION;
 const SAMPLE_NARRATION='　';
 
 // URL の character / expression を読む。定義済みの名前以外は既定値へ戻す。
-// bg は背景の種類（game / dark / light / checker / town_day / town_day_repaint）。duo=1 と group=riene,thug で並列表示を指定できる。
-const BG_VALUES=['game','dark','light','checker','town_day','town_day_repaint'];
+// bg は背景の種類（game / dark / light / checker / town_day）。bg=town_day_repaint は旧指定の互換として town_day と同じ表示にする。
+// duo=1 と group=riene,thug で並列表示を指定できる。
+const BG_VALUES=['game','dark','light','checker','town_day'];
+const BG_ALIASES={town_day_repaint:'town_day'};
 function readParams(){
  const p=new URLSearchParams(location.search),char=p.get('character'),expr=p.get('expression');
  if(Object.hasOwn(PORTRAITS,char))state.char=char;
  if(isPortraitExpression(state.char,expr))state.expr[state.char]=expr;
- if(BG_VALUES.includes(p.get('bg')))state.bg=p.get('bg');
+ const bg=BG_ALIASES[p.get('bg')]||p.get('bg');
+ if(BG_VALUES.includes(bg))state.bg=bg;
  if(p.get('duo')==='1')state.duo=true;
  const group=(p.get('group')||'').split(',').filter(c=>Object.hasOwn(PORTRAITS,c)).slice(0,GROUP_MAX);
  if(group.length)state.group=group;
@@ -128,7 +131,6 @@ function render(){
  const preview=$('preview');
  preview.className='bg-'+state.bg+' mode-'+state.mode+(preview.classList.contains('panel-open')?' panel-open':'');
  document.body.classList.toggle('bg-town-day',state.bg==='town_day');
- document.body.classList.toggle('bg-town-day-repaint',state.bg==='town_day_repaint');
  const layer=$('portraits');
  layer.className='portraits mode-'+state.mode;
  const speakerName=state.speaker==='char'?PORTRAITS[state.char].name:'';
