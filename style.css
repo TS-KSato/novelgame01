@@ -85,3 +85,5 @@ body.dream-on .scenery{filter:blur(.6px)}
 body.dream-on #portraits{filter:blur(.4px)}
 .dream{position:absolute;inset:0;z-index:1;pointer-events:none;display:none;background:radial-gradient(ellipse 75% 70% at 50% 42%,transparent 58%,rgba(2,6,10,.5) 100%)}
 body.dream-on .dream{display:block}
+/* 仮配置の背景（昼の商業通り）。画像が読めない場合は既存の背景色のまま。本文・立ち絵の操作には影響しない。 */
+body.bg-town-day .scenery{background-image:url('assets/backgrounds/town_day.png')}

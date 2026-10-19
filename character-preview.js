@@ -10,13 +10,20 @@ for(const char of Object.keys(PORTRAITS))state.expr[char]=DEFAULT_EXPRESSION;
 const SAMPLE_NARRATION='　';
 
 // URL の character / expression を読む。定義済みの名前以外は既定値へ戻す。
+// bg は背景の種類（game / dark / light / checker / town_day）。duo=1 と group=riene,thug で並列表示を指定できる。
+const BG_VALUES=['game','dark','light','checker','town_day'];
 function readParams(){
  const p=new URLSearchParams(location.search),char=p.get('character'),expr=p.get('expression');
  if(Object.hasOwn(PORTRAITS,char))state.char=char;
  if(isPortraitExpression(state.char,expr))state.expr[state.char]=expr;
+ if(BG_VALUES.includes(p.get('bg')))state.bg=p.get('bg');
+ if(p.get('duo')==='1')state.duo=true;
+ const group=(p.get('group')||'').split(',').filter(c=>Object.hasOwn(PORTRAITS,c)).slice(0,GROUP_MAX);
+ if(group.length)state.group=group;
 }
 function writeParams(){
- try{history.replaceState(null,'',location.pathname+'?character='+state.char+'&expression='+state.expr[state.char]);}catch{}
+ const duo=state.duo?'&duo=1&group='+state.group.join(','):'';
+ try{history.replaceState(null,'','?character='+state.char+'&expression='+state.expr[state.char]+'&bg='+state.bg+duo);}catch{}
 }
 
 // 画像を一度だけ読み込み、寸法・透過率を得る。失敗は ok:false で返す。
@@ -120,6 +127,7 @@ function setPanel(open){
 function render(){
  const preview=$('preview');
  preview.className='bg-'+state.bg+' mode-'+state.mode+(preview.classList.contains('panel-open')?' panel-open':'');
+ document.body.classList.toggle('bg-town-day',state.bg==='town_day');
  const layer=$('portraits');
  layer.className='portraits mode-'+state.mode;
  const speakerName=state.speaker==='char'?PORTRAITS[state.char].name:'';
