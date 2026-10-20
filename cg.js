@@ -14,6 +14,13 @@ const CGS={
   ending_true:{src:'assets/cg/ending_true.webp?v=1',pos:'50% 70%',alt:'橋のそばで朝食をとる二人と空の椅子'},
   ending_god:{src:'assets/cg/ending_god.webp?v=1',pos:'50% 100%',alt:'雷光の下でカイルの手を額に当てるミナト'},
   ending_bad:{src:'assets/cg/ending_bad.webp?v=1',pos:'50% 50%',alt:'道端で靴紐を結ぶリーネ'},
+  camp_old_friends:{src:'assets/cg/camp_old_friends.webp?v=1',pos:'50% 50%',alt:'昔の仲間と焚き火を囲むミナト'},
+  first_hand:{src:'assets/cg/first_hand.webp?v=1',pos:'50% 50%',alt:'学生服のミナトに手を差し伸べる若いカイル'},
+  first_town:{src:'assets/cg/first_town.webp?v=1',pos:'50% 50%',alt:'旅の初めに訪れた町の市場'},
+  riene_tia_care:{src:'assets/cg/riene_tia_care.webp?v=1',pos:'50% 50%',alt:'ティアの傷を手当てするリーネ'},
+  farewell:{src:'assets/cg/farewell.webp?v=1',pos:'50% 50%',alt:'孤児院を去るカイルと幼いリーネ'},
+  garden:{src:'assets/cg/garden.webp?v=1',pos:'50% 50%',alt:'小さな植物を世話するヴァルゼン（回想）'},
+  confession:{src:'assets/cg/confession.webp?v=1',pos:'50% 50%',alt:'兄のことを明かされ、言葉を失うリーネ'},
 };
 const CG_SEGMENTS={
   'battle-approach':[[30,31,'kyle_reunion']],
@@ -25,6 +32,12 @@ const CG_SEGMENTS={
   end_true:[[37,39,'ending_true']],
   end_god:[[31,32,'ending_god']],
   lonely:[[16,21,'ending_bad']],
+  'confession-honest':[[0,0,'camp_old_friends'],[1,1,'first_hand']],
+  alley:[[7,8,'first_town']],
+  'races-yard':[[34,42,'riene_tia_care']],
+  brother:[[13,15,'farewell']],
+  confession:[[13,17,'confession']],
+  end_harmony:[[22,22,'garden'],[34,36,'ending_harmony']],
 };
 function cgFor(scene,index){
  const segs=CG_SEGMENTS[scene];
