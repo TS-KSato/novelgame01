@@ -6,7 +6,9 @@ const $=id=>document.getElementById(id);
 const p=new URLSearchParams(location.search);
 const names=Object.keys(CGS);
 const startOf=name=>{
- for(const [scene,segs] of Object.entries(CG_SEGMENTS))for(const [from,,n] of segs)if(n===name)return {scene,line:from};
+ for(const scene of Object.keys(CG_SEGMENTS))for(const [from,,n] of cgRanges(scene))if(n===name)return {scene,line:from};
+ const t=TRIP_UNLOCKS.find(u=>u.cg===name);
+ if(t)return {scene:t.scene,line:PAGE_IDS[t.scene].indexOf(t.id)};
  return null;
 };
 let cgSel=CGS[p.get('cg')]?p.get('cg'):names[0];
