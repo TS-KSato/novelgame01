@@ -45,7 +45,7 @@ const SOUNDS=[
  ['battle','battle-011','sword_clash'],
  ['lonely','lonely-001','town_bell'],
  ['rescue','rescue-022','footsteps_stone'],
- ['border-road','border-road-002','footsteps_dirt'],
+ ['brother','brother-034','footsteps_dirt'],
  ['border','border-002','door_open'],
  ['end_harmony','end-harmony-013','door_close'],
  ['end_true','end-true-004','paper_unfold'],
