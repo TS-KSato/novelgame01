@@ -6,8 +6,8 @@ const AudioCue=(function(){
 const AMB_FILE=n=>'assets/audio/ambience/'+n+'.mp3';
 const SE_FILE=n=>'assets/audio/se/'+n+'.mp3';
 // 再生時の倍率。環境音は各ファイルの平均音量を揃え（ピークは0dBFSを超えない範囲）、効果音はピークを約-10dBに揃える。
-const AMB_GAIN={town_ambience:.51,watermill:.57,rain:3.1,campfire:4.4,tower_wind:12,country_ambience:7.6};
-const SE_GAIN={town_bell:.39,sword_clash:.32,stone_break:.28,healing:.33};
+const AMB_GAIN={town_ambience:.51,watermill:.57,rain:3.1,campfire:4.4,tower_wind:12,country_ambience:7.6,tavern_ambience:4};
+const SE_GAIN={town_bell:.39,sword_clash:.32,stone_break:.28,healing:.33,footsteps_stone:.25,footsteps_dirt:2.1,door_open:.21,door_close:.2,paper_unfold:2,cloth_rustle:4};
 const XFADE=1.5,FADE=1.2,LOOKAHEAD=1,TICK=200;
 const EQ_IN=new Float32Array(64),EQ_OUT=new Float32Array(64);
 for(let i=0;i<64;i++){EQ_IN[i]=Math.sin(Math.PI/2*i/63);EQ_OUT[i]=Math.cos(Math.PI/2*i/63);}
@@ -33,6 +33,8 @@ const AMBIENCE=[
  ['prayer-return',null,null,'campfire',1,false],
  ['confession-honest',null,null,'campfire',1,false],
  ['arena','arena-063','arena-091','campfire',1,false],
+ // 宿の食堂の客の喧騒。races-017 で客が静まるため、そこで止める。
+ ['races','races-001','races-016','tavern_ambience',1,false],
 ];
 // 単発の効果音: [場面, 発火させる行ID, 効果音]。行に入ったときに一度だけ鳴る。
 const SOUNDS=[
@@ -42,8 +44,17 @@ const SOUNDS=[
  ['battle','battle-001','stone_break'],
  ['battle','battle-011','sword_clash'],
  ['lonely','lonely-001','town_bell'],
+ ['rescue','rescue-022','footsteps_stone'],
+ ['border-road','border-road-002','footsteps_dirt'],
+ ['border','border-002','door_open'],
+ ['end_harmony','end-harmony-013','door_close'],
+ ['end_true','end-true-004','paper_unfold'],
+ ['collapse-agreement','collapse-agreement-005a','paper_unfold'],
+ ['arena','arena-001','cloth_rustle'],
+ ['border','border-020','cloth_rustle'],
 ];
 let ctx=null,master=null,on=false,vol=.22,wanted=null,cur=null,failed=[],fired=0;
+const lastSe={};const SE_COOLDOWN=1.5; // 同じ行への再入場や連続操作で、同じ効果音が重なるのを防ぐ（別の行の同じ音は妨げない）
 const bufs={},seActive=new Set();
 
 // 行IDを行の位置へ。場面や行が見つからない指定は無視する（範囲に入らない扱い）。
@@ -142,7 +153,9 @@ function setEnv(a){
 function stopEnv(immediate){
  if(cur){if(immediate)stopLoop(cur);else fadeOut(cur);cur=null;}
 }
-function playSe(name){
+function playSe(name,key){
+ if(ctx&&lastSe[key]!==undefined&&ctx.currentTime-lastSe[key]<SE_COOLDOWN)return;
+ if(ctx)lastSe[key]=ctx.currentTime;
  fired++;
  const go=buf=>{
   if(!buf||!on||!ctx)return;
@@ -185,7 +198,7 @@ return {
  // 行に入ったとき。fire=true のときだけ単発の効果音を鳴らす。
  onLine(node,line,fire){
   setEnv(ambienceAt(node,line));
-  if(fire&&on){const n=seAt(node,line);if(n)playSe(n);}
+  if(fire&&on){const n=seAt(node,line);if(n)playSe(n,node+':'+line);}
  },
  // タイトルへ戻る：ゲーム中の環境音を止める。音は鳴らさない。
  stopEnv(){wanted=null;stopEnv(false);},
