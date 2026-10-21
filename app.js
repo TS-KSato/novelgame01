@@ -1,6 +1,6 @@
 'use strict';
-// 全編統合稿 v4（full-v4）。v3 からは行の位置を変えず、序章の不鮮明な台詞（V3_REPLACED）だけを扱う。旧版は FULL_MIGRATIONS → V1_TO_V2 → V2_TO_V3 → 同じ位置 の順に通す。
-const OPENING_REV='full-v4',OPENING_BACKUP_KEY='zelg-v1-backup-full-v4';
+// 全編統合稿 v5（full-v5）。v4 からは推敲（V4_TO_V5）で行の位置が変わる場面だけを移す。旧版は FULL_MIGRATIONS → V1_TO_V2 → V2_TO_V3 → 同じ位置 → V4_TO_V5 の順に通す。
+const OPENING_REV='full-v5',OPENING_BACKUP_KEY='zelg-v1-backup-full-v5';
 // 序章の周辺減光・ぼかし（body.dream-on）の対象場面。
 const DREAM_SCENE='prologue';
 const $=s=>document.getElementById(s),KEY='zelg-v1';let persist={seen:[],ends:[],slots:[null,null,null],auto:null,settings:{speed:38,volume:.22}},st=null,typing=null,autoTimer=null,skipTimer=null,auto=false,skip=false,full='',chars=[],at=0,ctx=null,master=null,musicTimer=null,sound=false;
@@ -18,6 +18,32 @@ const V2_TO_V3={"scholar": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 const V2_REPLACED={"scholar": [63, 64, 65, 66, 67, 68, 69]};
 // 同じ行数でも意味を変えた旧 full-v3 の行。位置は移すが、既読は引き継がない。
 const V3_REPLACED={"prologue": [3, 5, 6, 7]};
+// full-v4 → full-v5（推敲）。行の位置が変わった場面だけ、旧行 → 新行の対応を持つ。
+const V4_TO_V5={"prologue":[0,1,2,3,4,5,6,7,8,9],"scholar":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77],"confession":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63],"prayer-method":[0,1,2,3,4,5,6,7,8,9,10],"agreement-method":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,17],"alone":[0,1,2,3,4],"collapse-agreement":[0,1,2,3,4,6,7],"end_true":[0,1,3,4,5,6,7,8,8,11,12,13,14,15,15,15,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44],"end_god":[0,1,2,3,4,5,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51]};
+// 意味を変えた行（書き換え・新規行）。位置は移すが、既読は引き継がない。
+const V4_REPLACED={"prologue":[2,8],"scholar":[23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,45],"confession":[29],"prayer-method":[1],"agreement-method":[14,15,16,17],"alone":[1,4],"collapse-agreement":[5],"end_true":[1,2,3,5,6,7,8,9,10,11,13,15,16,17,18,19],"end_god":[3,4,5,6,7,16,21,25,26,27]};
+function v5Position(node,line){
+ if(!Object.hasOwn(STORY,node))return null;
+ const a=V4_TO_V5[node];
+ if(!a)return Number.isInteger(line)&&line>=0&&line<STORY[node].lines.length?line:null;
+ if(!Number.isInteger(line)||line<0||line>=a.length)return null;
+ return a[line];
+}
+function migrateSeenV4(seen){
+ if(!Array.isArray(seen))return [];
+ const out=[];
+ for(const id of seen){
+  if(typeof id!=='string')continue;
+  const i=id.lastIndexOf(':');const node=id.slice(0,i),line=Number(id.slice(i+1));
+  if(!Object.hasOwn(STORY,node)||!Number.isInteger(line)||line<0||line>=STORY[node].lines.length)continue;
+  const l5=v5Position(node,line);
+  if(l5===null)continue;
+  if((V4_REPLACED[node]||[]).includes(l5))continue;
+  const key=node+':'+l5;if(!out.includes(key))out.push(key);
+ }
+ return out;
+}
+
 function v3Position(node,line){
  if(!Object.hasOwn(STORY,node))return null;
  const a=V2_TO_V3[node];
@@ -27,6 +53,7 @@ function v3Position(node,line){
 }
 // 既読は full-v1 / full-v2 / full-v3 からの移行だけ、行の対応で移す。それ以外の旧版の既読はリセットする（従来の方針）。
 function migrateSeen(seen,rev){
+ if(rev==='full-v4')return migrateSeenV4(seen);
  if(!Array.isArray(seen)||(rev!=='full-v1'&&rev!=='full-v2'&&rev!=='full-v3'))return [];
  const out=[];
  for(const id of seen){
@@ -43,7 +70,9 @@ function migrateSeen(seen,rev){
   }
   if(l3===null)continue;
   if((V3_REPLACED[node]||[]).includes(l3))continue;
-  const key=node+':'+l3;if(!out.includes(key))out.push(key);
+  const l5=v5Position(node,l3);
+  if(l5===null||(V4_REPLACED[node]||[]).includes(l5))continue;
+  const key=node+':'+l5;if(!out.includes(key))out.push(key);
  }
  return out;
 }
@@ -52,7 +81,7 @@ function migrateState(s){
  if(s.contentRevision===OPENING_REV)return valid(s)?{ok:true,state:s}:{ok:false,reason:'本文の位置が範囲外です'};
  const rev=s.contentRevision===undefined?'unmarked-original':s.contentRevision;
  let v3node,v3line;
- if(rev==='full-v3'){
+ if(rev==='full-v3'||rev==='full-v4'){
   if(!Object.hasOwn(STORY,s.node)||!Number.isInteger(s.line)||s.line<0||s.line>=STORY[s.node].lines.length)return{ok:false,reason:'本文の位置が範囲外です'};
   v3node=s.node;v3line=s.line;
  }else{
@@ -73,7 +102,9 @@ function migrateState(s){
   v3node=v2node;v3line=v3Position(v2node,v2line);
   if(v3line===null)return{ok:false,reason:'移行後の位置が本文の範囲外です'};
  }
- const t={...clone(s),node:v3node,line:v3line,contentRevision:OPENING_REV};
+ const v5line=v5Position(v3node,v3line);
+ if(v5line===null)return{ok:false,reason:'移行後の位置が本文の範囲外です'};
+ const t={...clone(s),node:v3node,line:v5line,contentRevision:OPENING_REV};
  if(!valid(t))return{ok:false,reason:'移行後の位置が本文の範囲外です'};
  return{ok:true,state:t};
 }
