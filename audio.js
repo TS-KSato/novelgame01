@@ -15,6 +15,8 @@ const BGM_FILE=n=>'assets/audio/bgm/'+n+'.mp3';
 const BGM_GAIN={main_theme:.501,journey:.436,companions:.436,unease:.501,memories:.450,battle:.483,parting:.489,resolve:.478,ending_true:.436,ending_harmony:.463,ending_sacrifice:.478,ending_collapse:.489,ending_god:.457,ending_bad:.483};
 // 通常の曲は継ぎ目をクロスフェードで繋ぐ。結末の曲は一回だけ再生し、終わったら止める。
 const BGM_XFADE=3;
+// 曲の切り替えは旧曲を3秒かけて下げながら新曲を上げる。無音へ移るときは4秒かけて止める。
+const BGM_SWITCH=3,BGM_STOP=4;
 const BGM_ONCE=new Set(['ending_true','ending_harmony','ending_sacrifice','ending_collapse','ending_god','ending_bad']);
 // 内部ゲイン。BGM・環境音・効果音を独立して調整する（全体の音量とON/OFFは master で扱う）。
 const BUS={bgm:.85,amb:1,se:1};
@@ -67,45 +69,102 @@ let bgmWant=null,bgmCur=null,deferred=false,bgmStarts=0;
 const lastSe={};const SE_COOLDOWN=1.5; // 同じ行への再入場や連続操作で、同じ効果音が重なるのを防ぐ（別の行の同じ音は妨げない）
 const bufs={},seActive=new Set();
 
-// BGMの範囲: [場面, 開始の行ID, 終了の行ID（null は場面の終わりまで）, 曲]。先に書いた範囲が優先。
-// 同じ曲が続く範囲は、場面が変わっても再生し直さない（曲名で同一性を判断する）。
-const BGM=[
- ['rescue','rescue-001','rescue-009','unease'],
- ['brother','brother-003','brother-010','companions'],
- ['court-after','court-after-021',null,'journey'],
- ['court','court-040','court-058','unease'],
- ['arena','arena-027','arena-040','unease'],
- ['arena','arena-053','arena-091','companions'],
- ['scholar','scholar-041','scholar-058','companions'],
- ['border','border-045','border-049','memories'],
- ['neia','neia-001','neia-029','unease'],
- ['neia-listen','neia-listen-007','neia-listen-013','memories'],
- ['alone','alone-001','alone-005','unease'],
- ['races-yard','races-yard-024b','races-yard-024x','companions'],
- ['prayer-weeks','prayer-weeks-021','prayer-weeks-031','companions'],
- ['prayer-return','prayer-return-002','prayer-return-011','companions'],
- ['resolve','resolve-010','resolve-029','resolve'],
- ['agreement-method','agreement-method-013','agreement-method-016','resolve'],
- ['battle','battle-002','battle-031','battle'],
- ['battle','battle-039','battle-052','parting'],
- ['end_harmony','end-harmony-016',null,'ending_harmony'],
- ['end_sacrifice','end-sacrifice-013',null,'ending_sacrifice'],
- ['end_collapse','end-collapse-014',null,'ending_collapse'],
- ['end_true','end-true-010',null,'ending_true'],
- ['end_god','end-god-029',null,'ending_god'],
- ['lonely','lonely-006',null,'ending_bad'],
+// BGMの指示（cue）: [場面, 行ID（null は場面の始まり）, 曲（null は無音へ移る）]。
+// 指示のない行では、今鳴っている曲をそのまま続ける（場面が変わっても止めない）。切り替え・停止は指示のある行だけで起きる。
+// 読込（restore）では、その場面で直前の指示を探し、指示がなければ無音で始める。そのため、続く曲は場面の始まりにも指示を置く。
+const BGM_CUES=[
+ ['prologue',null,null],
+ ['prologue','prologue-004','unease'],
+ ['rescue','rescue-001','unease'],
+ ['brother','brother-001','unease'],
+ ['brother','brother-003','companions'],
+ ['scholar',null,'companions'],
+ ['scholar','scholar-059','unease'],
+ ['arena','arena-001','companions'],
+ ['arena','arena-027','unease'],
+ ['arena','arena-041','companions'],
+ ['court-road',null,'companions'],
+ ['court',null,'companions'],
+ ['court','court-013','unease'],
+ ['court-disclose',null,'unease'],
+ ['court-private',null,'unease'],
+ ['court-after','court-after-001','journey'],
+ ['border-road',null,'journey'],
+ ['border',null,'companions'],
+ ['border','border-045','memories'],
+ ['border','border-063','unease'],
+ ['border-share',null,'unease'],
+ ['border-copy',null,'unease'],
+ ['border-after','border-after-001','journey'],
+ ['races-road',null,'journey'],
+ ['races-road','races-road-011','companions'],
+ ['races-yard',null,'companions'],
+ ['races',null,'unease'],
+ ['races-talk',null,'unease'],
+ ['races-enemy',null,'unease'],
+ ['races-stone',null,'unease'],
+ ['races-stone','races-stone-021','parting'],
+ ['neia-road',null,'parting'],
+ ['neia-road','neia-road-005','unease'],
+ ['neia',null,'unease'],
+ ['neia-listen',null,'unease'],
+ ['neia-listen','neia-listen-007','memories'],
+ ['neia-listen','neia-listen-014','unease'],
+ ['neia-defend',null,'unease'],
+ ['neia-after','neia-after-001','parting'],
+ ['prayer-weeks','prayer-weeks-001','journey'],
+ ['prayer-weeks','prayer-weeks-021','companions'],
+ ['prayer-compare',null,'unease'],
+ ['prayer-method',null,'unease'],
+ ['prayer-stone',null,'unease'],
+ ['prayer-stone','prayer-stone-018','companions'],
+ ['prayer-night','prayer-night-007','unease'],
+ ['prayer-contact',null,'unease'],
+ ['prayer-send','prayer-send-001','journey'],
+ ['prayer-six','prayer-six-001','resolve'],
+ ['prayer-return',null,'companions'],
+ ['confession-road','confession-road-001','unease'],
+ ['confession','confession-001',null],
+ ['confession','confession-027','unease'],
+ ['confession-honest',null,null],
+ ['confession-protect',null,null],
+ ['resolve','resolve-001','resolve'],
+ ['resolve-plan',null,'resolve'],
+ ['agreement-yes',null,'resolve'],
+ ['agreement-method',null,'resolve'],
+ ['agreement-no','agreement-no-001','unease'],
+ ['alone','alone-001','unease'],
+ ['collapse-agreement',null,'unease'],
+ ['battle-approach','battle-approach-001','unease'],
+ ['battle-approach','battle-approach-016',null],
+ ['battle-approach','battle-approach-036','unease'],
+ ['battle','battle-002','battle'],
+ ['battle','battle-032',null],
+ ['battle','battle-039','parting'],
+ ['end_harmony',null,'parting'],
+ ['end_harmony','end-harmony-016','ending_harmony'],
+ ['end_sacrifice',null,'parting'],
+ ['end_sacrifice','end-sacrifice-013','ending_sacrifice'],
+ ['end_collapse',null,'parting'],
+ ['end_collapse','end-collapse-014','ending_collapse'],
+ ['end_true',null,'parting'],
+ ['end_true','end-true-010','ending_true'],
+ ['end_god',null,'parting'],
+ ['end_god','end-god-029','ending_god'],
+ ['lonely','lonely-006','ending_bad'],
 ];
 // 行IDを行の位置へ。場面や行が見つからない指定は無視する（範囲に入らない扱い）。
 function at(scene,id){return id===null?null:(PAGE_IDS[scene]||[]).indexOf(id);}
-function bgmAt(node,line){
- for(const [scene,a,b,track] of BGM){
+// その行で有効な指示（同じ場面で、その行以前の最後の指示）。指示がなければ undefined。
+function cueAt(node,line){
+ let found;
+ for(const [scene,id,track] of BGM_CUES){
   if(scene!==node)continue;
-  const f=at(scene,a);
-  if(f<0)continue;
-  const t=b===null?(PAGE_IDS[scene]||[]).length-1:at(scene,b);
-  if(line>=f&&line<=t)return{track,once:BGM_ONCE.has(track)};
+  const f=id===null?0:at(scene,id);
+  if(f<0||line<f)continue;
+  found={track};
  }
- return null;
+ return found;
 }
 function ambienceAt(node,line){
  for(const [scene,a,b,name,level,muffle] of AMBIENCE){
@@ -171,11 +230,11 @@ function startLoop(buf,a){
  else{const src=ctx.createBufferSource();src.buffer=buf;src.loop=true;src.connect(g);src.start(now+.05);L.sources.push(src);}
  return L;
 }
-function fadeOut(L){
+function fadeOut(L,sec=FADE){
  clearInterval(L.timer);
  const now=ctx.currentTime;
- L.gain.gain.cancelScheduledValues(now);L.gain.gain.setValueAtTime(L.gain.gain.value,now);L.gain.gain.linearRampToValueAtTime(0,now+FADE);
- setTimeout(()=>stopLoop(L),FADE*1000+200);
+ L.gain.gain.cancelScheduledValues(now);L.gain.gain.setValueAtTime(L.gain.gain.value,now);L.gain.gain.linearRampToValueAtTime(0,now+sec);
+ setTimeout(()=>stopLoop(L),sec*1000+200);
 }
 function stopLoop(L){
  clearInterval(L.timer);
@@ -223,7 +282,7 @@ function startTrack(buf,track,once){
  const now=ctx.currentTime,g=ctx.createGain(),f=ctx.createBiquadFilter();
  f.type='lowpass';f.frequency.value=20000;f.Q.value=.7;
  g.gain.setValueAtTime(once?0:BGM_GAIN[track],now);
- if(once)g.gain.linearRampToValueAtTime(BGM_GAIN[track],now+1.5);
+ if(once)g.gain.linearRampToValueAtTime(BGM_GAIN[track],now+BGM_SWITCH);
  g.connect(f);f.connect(bgmBus);
  const L={name:track,buf,gain:g,filter:f,sources:[],nextAt:now+.05,timer:null,xf:once?0:BGM_XFADE,once,done:false};
  if(once){
@@ -236,12 +295,18 @@ function startTrack(buf,track,once){
 // BGM の切り替え。同じ曲なら何もしない（再生し直さない）。違う曲なら、古い曲を短く fade してから新しい曲を読み込む。
 function applyBgm(){
  const w=bgmWant,track=w?w.track:null;
- if(bgmCur&&bgmCur.name===track)return;
- if(bgmCur){fadeOut(bgmCur);bgmCur=null;}
- if(!w||!on||!ensure())return;
+ if(bgmCur&&bgmCur.name===track)return;          // 同じ曲は続けて鳴らす（再生し直さない）
+ if(!track){                                     // 無音へ：ゆっくり止める
+  if(bgmCur){fadeOut(bgmCur,BGM_STOP);bgmCur=null;}
+  return;
+ }
+ if(!on||!ensure())return;
+ // 新しい曲は読み込みが終わってから入れる。その間は旧曲がそのまま鳴り続ける。
  load(BGM_FILE(track)).then(buf=>{
-  // 読み込み中に場面が変わっていたら、その曲は鳴らさない（古い曲が遅れて鳴るのを防ぐ）。
-  if(!buf||!on||!bgmWant||bgmWant.track!==track||bgmCur)return;
+  // 読み込み中に指示が変わっていたら、その曲は鳴らさない（古い曲が遅れて鳴るのを防ぐ）。
+  if(!buf||!on||!bgmWant||bgmWant.track!==track)return;
+  if(bgmCur&&bgmCur.name===track)return;
+  if(bgmCur)fadeOut(bgmCur,BGM_SWITCH);
   bgmCur=startTrack(buf,track,bgmWant.once);
  });
 }
@@ -278,7 +343,11 @@ return {
  // 行に入ったとき。o.fire=true のときだけ単発の効果音を鳴らす。o.defer=true（スキップ中）は音を切り替えず、停止後に settle で合わせる。
  onLine(node,line,o){
   const a=ambienceAt(node,line);
-  wanted=a;bgmWant=bgmAt(node,line);
+  wanted=a;
+  // 指示のある行では曲を切り替える。指示のない行では今の曲を続ける。読込（restore）で指示がなければ無音。
+  const c=cueAt(node,line);
+  if(c!==undefined)bgmWant=c.track?{track:c.track,once:BGM_ONCE.has(c.track)}:null;
+  else if(o.restore)bgmWant=null;
   if(o.defer){deferred=true;return;}
   deferred=false;
   setEnv(a);applyBgm();
@@ -293,7 +362,7 @@ return {
  // 非表示・バックグラウンド：止める（位置は保つ）。復帰で続きから。
  pause(){if(ctx&&ctx.state==='running')ctx.suspend().catch(()=>{});},
  resume(){if(ctx&&on)ctx.resume().catch(()=>{});},
- plan(node,line){return{amb:ambienceAt(node,line),se:seAt(node,line),bgm:bgmAt(node,line)};},
+ plan(node,line){const c=cueAt(node,line);return{amb:ambienceAt(node,line),se:seAt(node,line),bgm:c===undefined?'(keep)':c.track};},
  // 確認用。現在鳴っている環境音・単発音の数など（操作には使わない）。
  status(){return{on,ctxState:ctx?ctx.state:null,env:cur?cur.name:null,wanted:wanted?wanted.name:null,loopSources:cur?cur.sources.length:0,bgm:bgmCur?bgmCur.name:null,bgmStarts,bgmWant:bgmWant?bgmWant.track:null,bgmDone:bgmCur?bgmCur.done:null,seActive:seActive.size,fired,failed:failed.slice(),masterGain:master?master.gain.value:null};},
  failedFiles(){return failed.slice();}
