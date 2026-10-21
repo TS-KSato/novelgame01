@@ -3,7 +3,7 @@
 // CGS: 名前 → 画像・代替文・題名・分類。group は 'story'（本編で表示するCG）か 'trip'（本編では表示しない「旅のひとこま」）。
 //   pos は本編の表示位置（object-position）。鑑賞画面は contain で表示し、pos を使わない。
 // CG_SEGMENTS: 場面ID → [開始の行ID, 終了の行ID, CG名]（両端を含む）。行は PAGE_IDS の安定IDで指定し、配列の位置には依存しない。
-// TRIP_UNLOCKS: 「旅のひとこま」の解放位置（場面ID・行ID）。本文には画像を出さない。
+// TRIP_UNLOCKS: 「旅のひとこま」の解放位置（場面ID・行ID）。to があれば開始行から終了行までの到達で解放する。本文には画像を出さない。
 // END_SCENE: 結末ID → その結末の場面。結末に到達した記録から、その場面のCGを解放する。
 // GALLERY_ORDER: 鑑賞一覧の並び順。
 const CGS={
@@ -11,7 +11,7 @@ const CGS={
   kyle_reunion:{group:'story',title:'立ち止まる手',src:'assets/cg/kyle_reunion.webp?v=1',pos:'50% 100%',alt:'手を上げてリーネを止めるカイル'},
   calamity_battle:{group:'story',title:'刃を合わせて',src:'assets/cg/calamity_battle.webp?v=2',pos:'50% 50%',alt:'刃を合わせるミナトと厄災のカイル'},
   kyle_last_words:{group:'story',title:'最後の言葉',src:'assets/cg/kyle_last_words.webp?v=1',pos:'50% 70%',alt:'カイルを支えるミナトと治癒するリーネ'},
-  reunion:{group:'story',title:'兄との再会',src:'assets/cg/reunion.webp?v=1',pos:'50% 30%',alt:'厄災となった兄カイルと向き合うリーネ'},
+  reunion:{group:'trip',title:'兄との再会',src:'assets/cg/reunion.webp?v=1',alt:'厄災となった兄カイルと向き合うリーネ'},
   waterwheel:{group:'story',title:'力の向き',src:'assets/cg/waterwheel.webp?v=2',pos:'50% 0%',alt:'水車の前で力の向きを説明するミナトと手帳を持って聞くセリオン'},
   scholar_detour:{group:'story',title:'寄り道の理由',src:'assets/cg/scholar_detour.webp?v=1',pos:'50% 30%',alt:'石板に夢中のセリオンと待つティア、食べ物を持つリーネ'},
   confrontation:{group:'story',title:'ヴァルゼンとの決戦',src:'assets/cg/confrontation.webp?v=2',pos:'50% 30%',alt:'ヴァルゼンと戦う昔の勇者一行'},
@@ -33,7 +33,7 @@ const CGS={
 };
 const CG_SEGMENTS={
   rescue:[['rescue-037','rescue-039','riene_first_aid']],
-  'battle-approach':[['battle-approach-016','battle-approach-021','reunion'],['battle-approach-031','battle-approach-032','kyle_reunion']],
+  'battle-approach':[['battle-approach-031','battle-approach-032','kyle_reunion']],
   battle:[['battle-011','battle-011','calamity_battle'],['battle-039','battle-041','kyle_last_words']],
   scholar:[['scholar-046','scholar-051','waterwheel']],
   'races-yard':[['races-yard-018','races-yard-023','scholar_detour'],['races-yard-024k','races-yard-024s','riene_tia_care']],
@@ -52,9 +52,10 @@ const TRIP_UNLOCKS=[
   {cg:'camp_old_friends',scene:'confession',id:'confession-028'},
   {cg:'after_rain',scene:'confession',id:'confession-028'},
   {cg:'first_town',scene:'confession',id:'confession-042'},
+  {cg:'reunion',scene:'battle-approach',id:'battle-approach-016',to:'battle-approach-021'},
 ];
 const END_SCENE={bad:'lonely',harmony:'end_harmony',sacrifice:'end_sacrifice',collapse:'end_collapse',true:'end_true',god:'end_god'};
-const GALLERY_ORDER=['riene_first_aid','kyle_reunion','riene_tia_care','scholar_detour','waterwheel','calamity_battle','kyle_last_words','reunion','confrontation','farewell','first_hand','confession','garden','ending_harmony','ending_sacrifice','ending_collapse','ending_true','ending_god','ending_bad','camp_old_friends','first_town','after_rain','questions'];
+const GALLERY_ORDER=['riene_first_aid','kyle_reunion','riene_tia_care','scholar_detour','waterwheel','calamity_battle','kyle_last_words','confrontation','farewell','first_hand','confession','garden','ending_harmony','ending_sacrifice','ending_collapse','ending_true','ending_god','ending_bad','reunion','camp_old_friends','first_town','after_rain','questions'];
 // 場面の行IDを行の位置へ変換する（PAGE_IDS は story.js の安定ID）。見つからない行の指定は無視する。
 const CG_RANGES={};
 function cgRanges(scene){

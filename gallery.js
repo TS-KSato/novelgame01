@@ -25,8 +25,12 @@ function galleryUnlock(name){
 function galleryReachLine(scene,index){
  const name=cgFor(scene,index);
  if(name)galleryUnlock(name);
- const id=(PAGE_IDS[scene]||[])[index];
- for(const t of TRIP_UNLOCKS)if(t.scene===scene&&t.id===id)galleryUnlock(t.cg);
+ const ids=PAGE_IDS[scene]||[];
+ for(const t of TRIP_UNLOCKS){
+  if(t.scene!==scene)continue;
+  const from=ids.indexOf(t.id),to=t.to?ids.indexOf(t.to):from;
+  if(from>=0&&index>=from&&index<=to)galleryUnlock(t.cg);
+ }
 }
 // 既存の記録から、到達が確実なものだけを解放する（何度呼んでも結果は同じ。データは書き換えない）。
 // 既読履歴（場面:行番号）、完了した結末、各セーブの現在位置を見る。
