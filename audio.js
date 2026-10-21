@@ -1,5 +1,5 @@
 'use strict';
-// 音声。一つの AudioContext で、既存の控えめな基調音（合成）、環境音（ループ）、単発の効果音を鳴らす。
+// 音声。一つの AudioContext で、環境音（ループ）と単発の効果音を鳴らす。音源の指定がない場面は無音を保つ（合成の基調音は鳴らさない）。
 // 音と行は安定した行ID（PAGE_IDS）で結ぶ。行に入ったとき onLine を呼ぶ。fire=false（ロード・再開・スキップ中）では単発音を鳴らさない。
 // 音声ファイルは変換・加工しない。ここで決めるのは再生時の倍率だけ（ファイル差の補正と、本文を読む邪魔にならない音量）。
 const AudioCue=(function(){
@@ -43,9 +43,8 @@ const SOUNDS=[
  ['battle','battle-011','sword_clash'],
  ['lonely','lonely-001','town_bell'],
 ];
-let ctx=null,master=null,padGain=null,padTimer=null,padI=0,on=false,vol=.22,wanted=null,cur=null,failed=[],fired=0;
+let ctx=null,master=null,on=false,vol=.22,wanted=null,cur=null,failed=[],fired=0;
 const bufs={},seActive=new Set();
-const NOTES=[130.81,196,261.63,155.56,233.08,196,146.83,220];
 
 // 行IDを行の位置へ。場面や行が見つからない指定は無視する（範囲に入らない扱い）。
 function at(scene,id){return id===null?null:(PAGE_IDS[scene]||[]).indexOf(id);}
@@ -73,7 +72,6 @@ function ensure(){
  try{
   ctx=new(window.AudioContext||window.webkitAudioContext)();
   master=ctx.createGain();master.gain.value=0;master.connect(ctx.destination);
-  padGain=ctx.createGain();padGain.gain.value=1;padGain.connect(master);
   return true;
  }catch{ctx=null;return false;}
 }
@@ -83,15 +81,6 @@ function applyMaster(){
  g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);
  if(on)g.setTargetAtTime(vol,t,.4);else g.linearRampToValueAtTime(0,t+.05);
 }
-
-// 既存の基調音（合成の音符）。環境音が鳴っている間は、その下で重ならないよう止める。
-function pad(){
- if(!on||(wanted&&wanted.name))return;
- const o=ctx.createOscillator(),g=ctx.createGain();
- o.type='sine';o.frequency.value=NOTES[padI++%NOTES.length];o.connect(g);g.connect(padGain);
- const t=ctx.currentTime;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.13,t+1);g.gain.exponentialRampToValueAtTime(.001,t+5);o.start(t);o.stop(t+5);
-}
-function startPad(){if(!padTimer){pad();padTimer=setInterval(pad,2800);}}
 
 // 環境音のループ。町の通りだけは、冒頭が強く末尾がほぼ無音のため、区間を等パワーで重ねて切れ目を埋める。
 // それ以外は、ファイル自体が切れ目で滑らかに続くので、標準のループ（loop）で繋ぐ（重ねると切れ目に膨らみが出るため）。
@@ -136,7 +125,6 @@ function setEnv(a){
  wanted=a;
  if(!on||!ensure())return;
  const name=a?a.name:null;
- padGain.gain.setTargetAtTime(name?0:1,ctx.currentTime,.6);
  if(cur&&cur.name===name){
   const t=ctx.currentTime;
   cur.gain.gain.setTargetAtTime(level(a),t,.6);
@@ -153,7 +141,6 @@ function setEnv(a){
 // 環境音を止める。wanted（今の場面の指定）は残す。OFFからONへ戻したとき、同じ場面の環境音へ戻れるように。
 function stopEnv(immediate){
  if(cur){if(immediate)stopLoop(cur);else fadeOut(cur);cur=null;}
- if(padGain&&ctx)padGain.gain.setTargetAtTime(1,ctx.currentTime,.6);
 }
 function playSe(name){
  fired++;
@@ -183,7 +170,7 @@ return {
  set(v){
   if(v){
    if(!ensure())return false;
-   on=true;applyMaster();startPad();preload();
+   on=true;applyMaster();preload();
    ctx.resume().catch(()=>{});
    setEnv(wanted);
    return true;
@@ -200,7 +187,7 @@ return {
   setEnv(ambienceAt(node,line));
   if(fire&&on){const n=seAt(node,line);if(n)playSe(n);}
  },
- // タイトルへ戻る：ゲーム中の環境音を止める（基調音は戻る）。
+ // タイトルへ戻る：ゲーム中の環境音を止める。音は鳴らさない。
  stopEnv(){wanted=null;stopEnv(false);},
  // 非表示・バックグラウンド：止める（位置は保つ）。復帰で続きから。
  pause(){if(ctx&&ctx.state==='running')ctx.suspend().catch(()=>{});},
