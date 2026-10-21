@@ -9,12 +9,12 @@
 const CGS={
   riene_first_aid:{group:'story',title:'温かな光',src:'assets/cg/riene_first_aid.webp?v=1',pos:'50% 30%',alt:'傷を支えるリーネ'},
   kyle_reunion:{group:'story',title:'立ち止まる手',src:'assets/cg/kyle_reunion.webp?v=1',pos:'50% 100%',alt:'手を上げてリーネを止めるカイル'},
-  calamity_battle:{group:'story',title:'刃を合わせて',src:'assets/cg/calamity_battle.webp?v=1',pos:'50% 50%',alt:'刃を合わせるミナトと厄災のカイル'},
+  calamity_battle:{group:'story',title:'刃を合わせて',src:'assets/cg/calamity_battle.webp?v=2',pos:'50% 50%',alt:'刃を合わせるミナトと厄災のカイル'},
   kyle_last_words:{group:'story',title:'最後の言葉',src:'assets/cg/kyle_last_words.webp?v=1',pos:'50% 70%',alt:'カイルを支えるミナトと治癒するリーネ'},
   reunion:{group:'story',title:'兄との再会',src:'assets/cg/reunion.webp?v=1',pos:'50% 30%',alt:'厄災となった兄カイルと向き合うリーネ'},
   waterwheel:{group:'story',title:'力の向き',src:'assets/cg/waterwheel.webp?v=2',pos:'50% 0%',alt:'水車の前で力の向きを説明するミナトと手帳を持って聞くセリオン'},
   scholar_detour:{group:'story',title:'寄り道の理由',src:'assets/cg/scholar_detour.webp?v=1',pos:'50% 30%',alt:'石板に夢中のセリオンと待つティア、食べ物を持つリーネ'},
-  confrontation:{group:'story',title:'ヴァルゼンとの決戦',src:'assets/cg/confrontation.webp?v=1',pos:'50% 30%',alt:'ヴァルゼンと戦う昔の勇者一行'},
+  confrontation:{group:'story',title:'ヴァルゼンとの決戦',src:'assets/cg/confrontation.webp?v=2',pos:'50% 30%',alt:'ヴァルゼンと戦う昔の勇者一行'},
   farewell:{group:'story',title:'旅立ちの約束',src:'assets/cg/farewell.webp?v=1',pos:'50% 50%',alt:'孤児院を去るカイルと幼いリーネ'},
   first_hand:{group:'story',title:'差し伸べられた手',src:'assets/cg/first_hand.webp?v=1',pos:'50% 50%',alt:'学生服のミナトに手を差し伸べる若いカイル'},
   riene_tia_care:{group:'story',title:'旅の手当て',src:'assets/cg/riene_tia_care.webp?v=1',pos:'50% 50%',alt:'ティアの傷を手当てするリーネ'},
@@ -26,9 +26,9 @@ const CGS={
   ending_true:{group:'story',title:'名を呼ぶ朝',src:'assets/cg/ending_true.webp?v=1',pos:'50% 70%',alt:'橋のそばで朝食をとる二人と空の椅子'},
   ending_god:{group:'story',title:'神のいない空',src:'assets/cg/ending_god.webp?v=1',pos:'50% 100%',alt:'雷光の下でカイルの手を額に当てるミナト'},
   ending_bad:{group:'story',title:'誰もいない道',src:'assets/cg/ending_bad.webp?v=1',pos:'50% 50%',alt:'道端で靴紐を結ぶリーネ'},
-  camp_old_friends:{group:'trip',title:'焚き火を囲んで',src:'assets/cg/camp_old_friends.webp?v=1',alt:'昔の仲間と焚き火を囲むミナト'},
-  first_town:{group:'trip',title:'見知らぬ町',src:'assets/cg/first_town.webp?v=1',alt:'旅の初めに訪れた町の市場'},
-  after_rain:{group:'trip',title:'雨上がり',src:'assets/cg/after_rain.webp?v=1',alt:'石橋の下から外へ向かう若い一行'},
+  camp_old_friends:{group:'trip',title:'焚き火を囲んで',src:'assets/cg/camp_old_friends.webp?v=2',alt:'昔の仲間と焚き火を囲むミナト'},
+  first_town:{group:'trip',title:'見知らぬ町',src:'assets/cg/first_town.webp?v=2',alt:'旅の初めに訪れた町の市場'},
+  after_rain:{group:'trip',title:'雨上がり',src:'assets/cg/after_rain.webp?v=2',alt:'石橋の下から外へ向かう若い一行'},
   questions:{group:'trip',title:'尽きない質問',src:'assets/cg/questions.webp?v=1',alt:'食卓でセリオンの質問に囲まれるミナトたち'},
 };
 const CG_SEGMENTS={
