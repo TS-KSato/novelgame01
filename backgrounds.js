@@ -65,7 +65,7 @@ const BG_SEGMENTS={
   'races-stone':[[0,24,'memorial_day']],
   'neia-road':[[0,11,'pass_fog']],
   'neia':[[0,28,'pass_fog']],
-  'neia-listen':[[0,17,'pass_fog']],
+  'neia-listen':[[0,18,'pass_fog']],
   'neia-defend':[[0,8,'pass_fog']],
   'neia-after':[[0,28,'pass_fog']],
   'prayer-inn':[[0,30,'inn_room_day']],
@@ -95,7 +95,7 @@ const BG_SEGMENTS={
   'end_sacrifice':[[0,11,'tower_top_night'],[12,16,'tower_path_day'],[17,18,'pass_fog'],[19,34,'town_gate_closed_day'],[35,38,'road_day']],
   'end_collapse':[[0,12,'tower_top_night'],[13,14,'road_day'],[15,15,'river_bridge_day'],[16,21,'town_day'],[22,26,'inn_room_day']],
   'end_true':[[0,25,'tower_top_night'],[26,26,'tower_path_day'],[27,37,'river_crossing_day'],[38,44,'river_bridge_day']],
-  'end_god':[[0,36,'tower_top_night'],[37,46,'pass_fog'],[47,51,'capital_office_day']],
+  'end_god':[[0,35,'tower_top_night'],[36,45,'pass_fog'],[46,50,'capital_office_day']],
   'lonely':[[0,2,'town_day'],[3,8,'road_day'],[9,9,'tower_path_day'],[10,13,'tower_top'],[14,14,'tower_top_night'],[15,30,'road_day'],[31,34,'orphanage_gate_day'],[35,35,'road_day'],[36,38,'pass_fog']],
 };
 

@@ -1,10 +1,14 @@
 'use strict';
-// 全編統合稿 v5（full-v5）。v4 からは推敲（V4_TO_V5）で行の位置が変わる場面だけを移す。旧版は FULL_MIGRATIONS → V1_TO_V2 → V2_TO_V3 → 同じ位置 → V4_TO_V5 の順に通す。
-const OPENING_REV='full-v5',OPENING_BACKUP_KEY='zelg-v1-backup-full-v5';
+// 全編統合稿 v6（full-v6）。v5 からは行の位置が変わる場面だけを V5_TO_V6 で移す。旧版は FULL_MIGRATIONS → V1_TO_V2 → V2_TO_V3 → 同じ位置 → V4_TO_V5 → V5_TO_V6 の順に通す。
+const OPENING_REV='full-v6',OPENING_BACKUP_KEY='zelg-v1-backup-full-v6';
 // 序章の周辺減光・ぼかし（body.dream-on）の対象場面。
 const DREAM_SCENE='prologue';
 const $=s=>document.getElementById(s),KEY='zelg-v1';let persist={seen:[],ends:[],slots:[null,null,null],auto:null,settings:{speed:38,volume:.22}},st=null,typing=null,autoTimer=null,skipTimer=null,auto=false,skip=false,full='',chars=[],at=0,ctx=null,master=null,musicTimer=null,sound=false;
 try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&Array.isArray(p.seen)&&Array.isArray(p.ends)&&Array.isArray(p.slots))persist={...persist,...p,settings:{...persist.settings,...p.settings}};}catch{}
+// 表示用の改行。空行は一つにまとめ、句点の後で改行する（閉じ括弧の後で改行）。本文データは変えない。
+function displayText(t){
+ return String(t).split(/\n+/).map(s=>s.trim()).filter(Boolean).map(s=>s.replace(/。([」』）]?)/g,(m,q,o,str)=>o+m.length<str.length?m+'\n':m)).join('\n');
+}
 function toast(t){$('toast').textContent=t;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2600);}
 function write(){try{localStorage.setItem(KEY,JSON.stringify(persist));return true;}catch{toast('ブラウザ保存が使えません。セーブコードを書き出してください。');return false;}}
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -29,6 +33,30 @@ function v5Position(node,line){
  if(!Number.isInteger(line)||line<0||line>=a.length)return null;
  return a[line];
 }
+// full-v5 → full-v6（文章の推敲）。行の位置が変わった場面だけ、旧行 → 新行の対応を持つ。
+const V5_TO_V6={"neia-listen":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,16,17,18],"end_god":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50]};
+// 文章を書き換えた行・新規の行（既読は引き継がない）。空白・改行だけの変更は含めない。
+const V5_REPLACED={"prologue":[1,2,5,8],"alley":[1,3,4,7,11,18,19,23],"rescue":[0,3,4,5,10,16,21,22,35,37,55,56],"brother":[6,9,16,26],"scholar":[0,2,23,31],"arena":[0,9,13,33,68,79],"court":[8,50],"court-after":[4],"border-road":[7,9],"border":[1,6,43],"races-road":[13],"neia":[6],"neia-listen":[9,15],"neia-after":[6],"prayer-weeks":[2,17],"prayer-night":[1],"prayer-contact":[4],"prayer-stone":[11],"confession":[38],"agreement-yes":[4],"agreement-method":[0,16],"agreement-no":[1],"collapse-agreement":[0],"battle":[1,2,13],"end_harmony":[3],"end_sacrifice":[37],"end_true":[35,37],"end_god":[23]};
+function v6Position(node,line){
+ if(!Object.hasOwn(STORY,node))return null;
+ const a=V5_TO_V6[node];
+ if(!a)return Number.isInteger(line)&&line>=0&&line<STORY[node].lines.length?line:null;
+ if(!Number.isInteger(line)||line<0||line>=a.length)return null;
+ return a[line];
+}
+function migrateSeenV5(seen){
+ if(!Array.isArray(seen))return [];
+ const out=[];
+ for(const id of seen){
+  if(typeof id!=='string')continue;
+  const i=id.lastIndexOf(':');const node=id.slice(0,i),line=Number(id.slice(i+1));
+  if(!Object.hasOwn(STORY,node)||!Number.isInteger(line)||line<0||line>=STORY[node].lines.length)continue;
+  const l6=v6Position(node,line);
+  if(l6===null||(V5_REPLACED[node]||[]).includes(l6))continue;
+  const key=node+':'+l6;if(!out.includes(key))out.push(key);
+ }
+ return out;
+}
 function migrateSeenV4(seen){
  if(!Array.isArray(seen))return [];
  const out=[];
@@ -39,7 +67,9 @@ function migrateSeenV4(seen){
   const l5=v5Position(node,line);
   if(l5===null)continue;
   if((V4_REPLACED[node]||[]).includes(l5))continue;
-  const key=node+':'+l5;if(!out.includes(key))out.push(key);
+  const l6=v6Position(node,l5);
+  if(l6===null||(V5_REPLACED[node]||[]).includes(l6))continue;
+  const key=node+':'+l6;if(!out.includes(key))out.push(key);
  }
  return out;
 }
@@ -53,6 +83,7 @@ function v3Position(node,line){
 }
 // 既読は full-v1 / full-v2 / full-v3 からの移行だけ、行の対応で移す。それ以外の旧版の既読はリセットする（従来の方針）。
 function migrateSeen(seen,rev){
+ if(rev==='full-v5')return migrateSeenV5(seen);
  if(rev==='full-v4')return migrateSeenV4(seen);
  if(!Array.isArray(seen)||(rev!=='full-v1'&&rev!=='full-v2'&&rev!=='full-v3'))return [];
  const out=[];
@@ -72,7 +103,9 @@ function migrateSeen(seen,rev){
   if((V3_REPLACED[node]||[]).includes(l3))continue;
   const l5=v5Position(node,l3);
   if(l5===null||(V4_REPLACED[node]||[]).includes(l5))continue;
-  const key=node+':'+l5;if(!out.includes(key))out.push(key);
+  const l6=v6Position(node,l5);
+  if(l6===null||(V5_REPLACED[node]||[]).includes(l6))continue;
+  const key=node+':'+l6;if(!out.includes(key))out.push(key);
  }
  return out;
 }
@@ -81,7 +114,7 @@ function migrateState(s){
  if(s.contentRevision===OPENING_REV)return valid(s)?{ok:true,state:s}:{ok:false,reason:'本文の位置が範囲外です'};
  const rev=s.contentRevision===undefined?'unmarked-original':s.contentRevision;
  let v3node,v3line;
- if(rev==='full-v3'||rev==='full-v4'){
+ if(rev==='full-v3'||rev==='full-v4'||rev==='full-v5'){
   if(!Object.hasOwn(STORY,s.node)||!Number.isInteger(s.line)||s.line<0||s.line>=STORY[s.node].lines.length)return{ok:false,reason:'本文の位置が範囲外です'};
   v3node=s.node;v3line=s.line;
  }else{
@@ -102,9 +135,11 @@ function migrateState(s){
   v3node=v2node;v3line=v3Position(v2node,v2line);
   if(v3line===null)return{ok:false,reason:'移行後の位置が本文の範囲外です'};
  }
- const v5line=v5Position(v3node,v3line);
+ const v5line=rev==='full-v5'?v3line:v5Position(v3node,v3line);
  if(v5line===null)return{ok:false,reason:'移行後の位置が本文の範囲外です'};
- const t={...clone(s),node:v3node,line:v5line,contentRevision:OPENING_REV};
+ const v6line=v6Position(v3node,v5line);
+ if(v6line===null)return{ok:false,reason:'移行後の位置が本文の範囲外です'};
+ const t={...clone(s),node:v3node,line:v6line,contentRevision:OPENING_REV};
  if(!valid(t))return{ok:false,reason:'移行後の位置が本文の範囲外です'};
  return{ok:true,state:t};
 }
@@ -145,7 +180,7 @@ function resumeAfterGallery(s){
 }
 function remember(){const id=st.node+':'+st.line;if(!persist.seen.includes(id))persist.seen.push(id);}
 function complete(){clearInterval(typing);typing=null;at=chars.length;$('prose').textContent=full;remember();if(auto&&!(STORY[st.node].choices&&st.line===STORY[st.node].lines.length-1))autoTimer=setTimeout(next,Math.max(1800,full.length*75));}
-function render(){clearInterval(typing);clearTimeout(autoTimer);document.body.classList.toggle('dream-on',st.node===DREAM_SCENE);applyBackground(document.querySelector('.scenery'),bgFor(st.node,st.line));preloadNextBackground(st.node,st.line);applyCG(cgFor(st.node,st.line));preloadNextCG(st.node,st.line);galleryReachLine(st.node,st.line);$('choices').replaceChildren();const s=STORY[st.node],line=storyLine(st.node,st.line,st);updatePortraits(st.node,st.line,line[0]);$('chapterNo').textContent=s.ch;$('chapterName').textContent=s.title;$('sceneWord').textContent=s.ch==='PROLOGUE'?'何も、終わらない。':s.title;$('speaker').textContent=line[0]||'　';full=line[1];chars=Array.from(full);at=0;$('prose').textContent='';$('page').textContent=String(st.line+1).padStart(2,'0')+' / '+String(s.lines.length).padStart(2,'0');
+function render(){clearInterval(typing);clearTimeout(autoTimer);document.body.classList.toggle('dream-on',st.node===DREAM_SCENE);applyBackground(document.querySelector('.scenery'),bgFor(st.node,st.line));preloadNextBackground(st.node,st.line);applyCG(cgFor(st.node,st.line));preloadNextCG(st.node,st.line);galleryReachLine(st.node,st.line);$('choices').replaceChildren();const s=STORY[st.node],line=storyLine(st.node,st.line,st);updatePortraits(st.node,st.line,line[0]);$('chapterNo').textContent=s.ch;$('chapterName').textContent=s.title;$('sceneWord').textContent=s.ch==='PROLOGUE'?'何も、終わらない。':s.title;$('speaker').textContent=line[0]||'　';full=displayText(line[1]);chars=Array.from(full);at=0;$('prose').textContent='';$('page').textContent=String(st.line+1).padStart(2,'0')+' / '+String(s.lines.length).padStart(2,'0');
 if(!st.log.length||st.log.at(-1)[1]!==full)st.log.push(line);if(st.log.length>2000)st.log.shift();checkpoint();
 if(persist.settings.speed===0||skip){complete();}else{typing=setInterval(()=>{$('prose').textContent=chars.slice(0,++at).join('');if(at>=chars.length)complete();},persist.settings.speed);}}
 function next(){if($('modal').open||$('game').hidden||!st||galleryOpen())return;if(typing){complete();return;}const s=STORY[st.node];if(st.line<s.lines.length-1){st.line++;render();return;}if(s.choices){if($('choices').childElementCount)return;clearTimeout(autoTimer);setPortraitChoice(true);s.choices.forEach((c,i)=>{const b=document.createElement('button');b.textContent=c.text;const sm=document.createElement('small');sm.textContent=String(i+1).padStart(2,'0')+' →';b.append(sm);b.onclick=()=>{stopTimers();for(const[k,v]of Object.entries(c.rel))st.rel[k]=(st.rel[k]||0)+v;for(const f of c.fragments)if(!st.fragments.includes(f)){st.fragments.push(f);toast('記憶の断片を入手しました');}Object.assign(st.flags,c.flags);go(c.to);};$('choices').append(b);});return;}go(s.next);}
@@ -162,7 +197,7 @@ $('export').onclick=()=>{const state=st||persist.auto?.state;if(!valid(state)){t
 $('import').onclick=()=>{try{const code=$('code').value.trim();if(!code.startsWith('ZELG1.')||code.length>1000000)throw Error();const p=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(code.slice(6)),c=>c.charCodeAt(0))));if(p.v!==1)throw Error();const mig=migrateImport(p);if(!mig.ok){toast(mig.reason);return;}p.state=mig.state;p.seen=mig.seen;if(!valid(p.state)||!Array.isArray(p.ends)||!p.ends.every(e=>Object.hasOwn(ENDINGS,e))||!Array.isArray(p.seen)||!p.seen.every(x=>typeof x==='string'&&x.length<100))throw Error();persist.ends=[...new Set([...persist.ends,...p.ends])];persist.seen=[...new Set([...persist.seen,...p.seen])];$('modal').close();start(p.state);toast('セーブコードを復元しました');}catch{toast('有効なセーブコードを入力してください。');}};}
 function slotUI(){$('slots').innerHTML='';persist.slots.slice(0,3).forEach((slot,i)=>{const row=document.createElement('div');row.className='row';const label=document.createElement('span');label.textContent='0'+(i+1)+'　'+(valid(slot?.state)?STORY[slot.state.node].title+' · '+new Date(slot.time).toLocaleString('ja-JP'):(slot?.state?'読めないセーブ：'+saveReason(slot.state):'空のスロット'));const buttons=document.createElement('span'),save=document.createElement('button'),load=document.createElement('button');save.className=load.className='btn';save.textContent='保存';load.textContent='読込';save.disabled=!st;load.disabled=!valid(slot?.state);save.onclick=()=>{if(slot&&!confirm('このスロットを上書きしますか？'))return;persist.slots[i]=archiveState();write();slotUI();toast('保存しました');};load.onclick=()=>{if(st&&!confirm('現在の進行を、このセーブの状態へ戻しますか？'))return;$('modal').close();start(slot.state);};buttons.append(save,load);row.append(label,buttons);$('slots').append(row);});}
 function audio(){try{if(!ctx){ctx=new(window.AudioContext||window.webkitAudioContext)();master=ctx.createGain();master.connect(ctx.destination);master.gain.value=0;}ctx.resume();sound=!sound;master.gain.setTargetAtTime(sound?persist.settings.volume:0,ctx.currentTime,.4);if(!musicTimer){let i=0;const notes=[130.81,196,261.63,155.56,233.08,196,146.83,220];const play=()=>{if(!sound)return;const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=notes[i++%notes.length];o.connect(g);g.connect(master);const t=ctx.currentTime;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.13,t+1);g.gain.exponentialRampToValueAtTime(.001,t+5);o.start(t);o.stop(t+5);};play();musicTimer=setInterval(play,2800);}$('sound').innerHTML='♪ <span>音 '+(sound?'ON':'OFF')+'</span>';}catch{toast('このブラウザでは音を再生できません');}}
-$('new').onclick=()=>{if(persist.auto&& !confirm('新しい旅を始めます。自動セーブは更新されます。よろしいですか？'))return;if(!sound)audio();start(fresh());};$('continue').onclick=()=>{if(valid(persist.auto?.state)){if(!sound)audio();start(persist.auto.state);}else toast('つづきから読めません：'+saveReason(persist.auto?.state));};$('dialogue').onclick=next;$('sound').onclick=audio;$('collection').onclick=collection;$('settings').onclick=saves;$('save').onclick=saves;$('memory').onclick=memories;$('close').onclick=()=>$('modal').close();$('log').onclick=()=>{const list=document.createElement('div');for(const[n,t]of st.log){const line=document.createElement('div');line.className='line';const name=document.createElement('div');name.className='badge';name.textContent=n||'地の文';const body=document.createElement('div');body.textContent=t;line.append(name,body);list.append(line);}modal('旅の履歴',list);$('modal').scrollTop=$('modal').scrollHeight;};
+$('new').onclick=()=>{if(persist.auto&& !confirm('新しい旅を始めます。自動セーブは更新されます。よろしいですか？'))return;if(!sound)audio();start(fresh());};$('continue').onclick=()=>{if(valid(persist.auto?.state)){if(!sound)audio();start(persist.auto.state);}else toast('つづきから読めません：'+saveReason(persist.auto?.state));};$('dialogue').onclick=next;$('sound').onclick=audio;$('collection').onclick=collection;$('settings').onclick=saves;$('save').onclick=saves;$('memory').onclick=memories;$('close').onclick=()=>$('modal').close();$('log').onclick=()=>{const list=document.createElement('div');for(const[n,t]of st.log){const line=document.createElement('div');line.className='line';const name=document.createElement('div');name.className='badge';name.textContent=n||'地の文';const body=document.createElement('div');body.textContent=displayText(t);line.append(name,body);list.append(line);}modal('旅の履歴',list);$('modal').scrollTop=$('modal').scrollHeight;};
 $('auto').onclick=()=>{if(skip)stopTimers();auto=!auto;$('auto').classList.toggle('active',auto);clearTimeout(autoTimer);if(auto&&!typing)autoTimer=setTimeout(next,2000);};$('skip').onclick=()=>{if(skip){stopTimers();return;}clearTimeout(autoTimer);auto=false;$('auto').classList.remove('active');skip=true;$('skip').classList.add('active');skipTimer=setInterval(()=>{if(!persist.seen.includes(st.node+':'+st.line)||STORY[st.node].choices&&st.line===STORY[st.node].lines.length-1){stopTimers();return;}next();},160);};
 function home(){if(st&&!$('game').hidden)checkpoint();title();}$('brand').onclick=home;$('menu').onclick=()=>{modal('旅をひと休み','<p class="muted">現在の進行は自動保存されています。</p><div class="row"><button class="btn" id="menuSave">設定・セーブ</button><button class="btn" id="menuCG">CG鑑賞</button><button class="btn" id="menuHome">タイトルへ戻る</button></div>');$('menuSave').onclick=()=>{$('modal').close();saves();};$('menuCG').onclick=()=>{$('modal').close();openGallery(true);};$('menuHome').onclick=()=>{$('modal').close();home();};};
 $('rotateFull').onclick=async()=>{try{await document.documentElement.requestFullscreen();await screen.orientation.lock('landscape');}catch{toast('端末を横向きにしてください');}};document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea'))return;if(e.code==='Space'||e.code==='Enter'){if(!$('modal').open&&!$('game').hidden&&!galleryOpen()){e.preventDefault();next();}}});document.addEventListener('visibilitychange',()=>{if(document.hidden){stopTimers();if(ctx)ctx.suspend();}else if(sound&&ctx)ctx.resume();});// ホーム画面からのWebアプリ起動の案内。自動では表示しない（補助リンクを押したときだけ開く）。
