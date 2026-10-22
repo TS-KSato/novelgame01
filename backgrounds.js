@@ -96,7 +96,7 @@ const BG_SEGMENTS={
   'end_collapse':[[0,12,'tower_top_night'],[13,14,'road_day'],[15,15,'river_bridge_day'],[16,21,'town_day'],[22,26,'inn_room_day']],
   'end_true':[[0,25,'tower_top_night'],[26,26,'tower_path_day'],[27,37,'river_crossing_day'],[38,44,'river_bridge_day']],
   'end_god':[[0,35,'tower_top_night'],[36,45,'pass_fog'],[46,50,'capital_office_day']],
-  'lonely':[[0,2,'town_day'],[3,8,'road_day'],[9,9,'tower_path_day'],[10,13,'tower_top'],[14,14,'tower_top_night'],[15,30,'road_day'],[31,34,'orphanage_gate_day'],[35,35,'road_day'],[36,38,'pass_fog']],
+  'lonely':[[0,2,'town_day'],[3,7,'road_day'],[8,8,'tower_path_day'],[9,12,'tower_top'],[13,13,'tower_top_night'],[14,28,'road_day'],[29,32,'orphanage_gate_day'],[33,33,'road_day'],[34,36,'pass_fog']],
 };
 
 // 行の背景名（指定がなければ null = 既定の背景）

@@ -1,6 +1,6 @@
 'use strict';
 // 全編統合稿 v6（full-v6）。v5 からは行の位置が変わる場面だけを V5_TO_V6 で移す。旧版は FULL_MIGRATIONS → V1_TO_V2 → V2_TO_V3 → 同じ位置 → V4_TO_V5 → V5_TO_V6 の順に通す。
-const OPENING_REV='full-v11',OPENING_BACKUP_KEY='zelg-v1-backup-full-v11';
+const OPENING_REV='full-v12',OPENING_BACKUP_KEY='zelg-v1-backup-full-v12';
 // 序章の周辺減光・ぼかし（body.dream-on）の対象場面。
 const DREAM_SCENE='prologue';
 const $=s=>document.getElementById(s),KEY='zelg-v1';let persist={seen:[],ends:[],slots:[null,null,null],auto:null,settings:{speed:38,sound:false,mix:{bgm:100,amb:100,se:100}}},st=null,typing=null,autoTimer=null,skipTimer=null,auto=false,skip=false,full='',chars=[],at=0,quietRender=false;
@@ -88,8 +88,20 @@ function alleyV11Line(line){
  return line<=2?line:line<=6?3:line+1;
 }
 // 旧版の位置を移す。書き換えた行の既読は、既読の移行の最後に外す。
-function toV11(t){
- if(t.node==='alley')t.line=alleyV11Line(t.line);
+// full-v11 → full-v12。ネイアとの遭遇前の独白（lonely）の 2 行を削除（旧 8 行目と 30 行目）。行位置は 8 以降を −1、旧 30 行目以降を −2。
+const V11_REPLACED={"lonely":[2,4,8,13,15,18,26,27,29,30,34]};
+function lonelyV12Line(line){
+ if(!Number.isInteger(line))return line;
+ return line<=6?line:line===7?7:line===29?28:line<=28?line-1:line-2;
+}
+function mapV11SeenKey(k){
+ const i=k.lastIndexOf(':'),node=k.slice(0,i);
+ return node==='lonely'?node+':'+lonelyV12Line(Number(k.slice(i+1))):k;
+}
+// 旧版の位置を現在の版へ移す。alley は full-v11 より前の版だけ、lonely は full-v12 より前の版すべてを移す。
+function toCurrent(t,fromRev){
+ if(fromRev!=='full-v11'&&t.node==='alley')t.line=alleyV11Line(t.line);
+ if(t.node==='lonely')t.line=lonelyV12Line(t.line);
  t.contentRevision=OPENING_REV;
  return t;
 }
@@ -97,9 +109,12 @@ function mapV10SeenKey(k){
  const i=k.lastIndexOf(':'),node=k.slice(0,i);
  return node==='alley'?node+':'+alleyV11Line(Number(k.slice(i+1))):k;
 }
+// 既読の判定に使う旧版の行数（full-v11 までの lonely は 39 行だった）。
+const OLD_LINE_LIMIT={lonely:39};
 function v8Position(node,line){
  if(!Object.hasOwn(STORY,node))return null;
- return Number.isInteger(line)&&line>=0&&line<STORY[node].lines.length?line:null;
+ const len=Math.max(STORY[node].lines.length,OLD_LINE_LIMIT[node]||0);
+ return Number.isInteger(line)&&line>=0&&line<len?line:null;
 }
 function migrateSeenV7(seen){
  if(!Array.isArray(seen))return [];
@@ -168,14 +183,16 @@ function v3Position(node,line){
 }
 // 既読は full-v1 / full-v2 / full-v3 からの移行だけ、行の対応で移す。それ以外の旧版の既読はリセットする（従来の方針）。
 // 既読の移行の最後に、最新の書き換え（V7_REPLACED）の既読を外す。旧版の既読もここを通る。
+const uniqueKeys=list=>list.filter((x,i)=>list.indexOf(x)===i);
 function migrateSeen(seen,rev){
- const base=migrateSeenBase(seen,rev);
- const v10=rev==='full-v10'?base:base.filter(k=>{const i=k.lastIndexOf(':'),node=k.slice(0,i),line=Number(k.slice(i+1));return !(V7_REPLACED[node]||[]).includes(line)&&!(V8_REPLACED[node]||[]).includes(line)&&!(V9_REPLACED[node]||[]).includes(line);});
- const v11=[];for(const k of v10){const key=mapV10SeenKey(k);if(!v11.includes(key))v11.push(key);}
- return v11.filter(k=>{const i=k.lastIndexOf(':'),node=k.slice(0,i),line=Number(k.slice(i+1));return !(V10_REPLACED[node]||[]).includes(line);});
+ let k=migrateSeenBase(seen,rev);
+ if(rev!=='full-v10'&&rev!=='full-v11')k=k.filter(x=>{const i=x.lastIndexOf(':'),node=x.slice(0,i),line=Number(x.slice(i+1));return !(V7_REPLACED[node]||[]).includes(line)&&!(V8_REPLACED[node]||[]).includes(line)&&!(V9_REPLACED[node]||[]).includes(line);});
+ if(rev!=='full-v11'){k=uniqueKeys(k.map(mapV10SeenKey));k=k.filter(x=>{const i=x.lastIndexOf(':'),node=x.slice(0,i),line=Number(x.slice(i+1));return !(V10_REPLACED[node]||[]).includes(line);});}
+ k=uniqueKeys(k.map(mapV11SeenKey));
+ return k.filter(x=>{const i=x.lastIndexOf(':'),node=x.slice(0,i),line=Number(x.slice(i+1));return !(V11_REPLACED[node]||[]).includes(line);});
 }
 function migrateSeenBase(seen,rev){
- if(rev==='full-v10'||rev==='full-v9'||rev==='full-v8'||rev==='full-v7')return migrateSeenV7(seen);
+ if(rev==='full-v11'||rev==='full-v10'||rev==='full-v9'||rev==='full-v8'||rev==='full-v7')return migrateSeenV7(seen);
  if(rev==='full-v6')return migrateSeenV6(seen);
  if(rev==='full-v5')return migrateSeenV5(seen);
  if(rev==='full-v4')return migrateSeenV4(seen);
@@ -206,8 +223,9 @@ function migrateSeenBase(seen,rev){
 function migrateState(s){
  if(!s||typeof s!=='object'||typeof s.node!=='string')return{ok:false,reason:'セーブの中身が読めません'};
  if(s.contentRevision===OPENING_REV)return valid(s)?{ok:true,state:s}:{ok:false,reason:'本文の位置が範囲外です'};
- if(s.contentRevision==='full-v10'||s.contentRevision==='full-v9'||s.contentRevision==='full-v8'||s.contentRevision==='full-v7'){const t=toV11({...clone(s)});return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
- if(s.contentRevision==='full-v6'){const t=toV11({...clone(s)});return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
+ if(s.contentRevision==='full-v11'){const t=toCurrent({...clone(s)},'full-v11');return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
+ if(s.contentRevision==='full-v10'||s.contentRevision==='full-v9'||s.contentRevision==='full-v8'||s.contentRevision==='full-v7'){const t=toCurrent({...clone(s)},s.contentRevision);return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
+ if(s.contentRevision==='full-v6'){const t=toCurrent({...clone(s)},'full-v6');return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
  const rev=s.contentRevision===undefined?'unmarked-original':s.contentRevision;
  let v3node,v3line;
  if(rev==='full-v3'||rev==='full-v4'||rev==='full-v5'){
@@ -235,7 +253,7 @@ function migrateState(s){
  if(v5line===null)return{ok:false,reason:'移行後の位置が本文の範囲外です'};
  const v6line=v6Position(v3node,v5line);
  if(v6line===null)return{ok:false,reason:'移行後の位置が本文の範囲外です'};
- const t=toV11({...clone(s),node:v3node,line:v6line});
+ const t=toCurrent({...clone(s),node:v3node,line:v6line},rev);
  if(!valid(t))return{ok:false,reason:'移行後の位置が本文の範囲外です'};
  return{ok:true,state:t};
 }
