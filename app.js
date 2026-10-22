@@ -1,6 +1,6 @@
 'use strict';
 // 全編統合稿 v6（full-v6）。v5 からは行の位置が変わる場面だけを V5_TO_V6 で移す。旧版は FULL_MIGRATIONS → V1_TO_V2 → V2_TO_V3 → 同じ位置 → V4_TO_V5 → V5_TO_V6 の順に通す。
-const OPENING_REV='full-v9',OPENING_BACKUP_KEY='zelg-v1-backup-full-v9';
+const OPENING_REV='full-v10',OPENING_BACKUP_KEY='zelg-v1-backup-full-v10';
 // 序章の周辺減光・ぼかし（body.dream-on）の対象場面。
 const DREAM_SCENE='prologue';
 const $=s=>document.getElementById(s),KEY='zelg-v1';let persist={seen:[],ends:[],slots:[null,null,null],auto:null,settings:{speed:38,sound:false,mix:{bgm:100,amb:100,se:100}}},st=null,typing=null,autoTimer=null,skipTimer=null,auto=false,skip=false,full='',chars=[],at=0,quietRender=false;
@@ -79,6 +79,8 @@ const V6_REPLACED={"border":[67]};
 const V7_REPLACED={"prologue":[3],"battle":[34]};
 // full-v8 → full-v9。語彙と呼称の校正（行数・話者・分岐は同じ）。書き換えた行の既読は引き継がない。
 const V8_REPLACED={"alley":[2,9,13],"rescue":[0,3,8,10,35,41,51],"brother":[6,16,26,31],"scholar":[10,17],"arena":[60],"court-road":[4,7],"court":[25],"court-after":[4],"border-road":[9,10,13,21],"border-after":[14],"races-road":[0,4,15],"races-yard":[6,23,47],"races":[23],"races-talk":[22],"races-stone":[0],"neia-road":[9],"neia":[9,22],"prayer-inn":[7],"prayer-weeks":[1,14,17],"prayer-compare":[0,10],"prayer-method":[7],"prayer-stone":[0],"prayer-night":[0],"prayer-contact":[2,4],"prayer-six":[0,7],"confession":[35],"agreement-method":[16],"alone":[1,2,4],"battle-approach":[21],"collapse-agreement":[5],"end_collapse":[15],"end_god":[6],"lonely":[16]};
+// full-v9 → full-v10。語句の校正（行数・話者・分岐は同じ）。書き換えた行の既読は引き継がない。
+const V9_REPLACED={"rescue":[4,18],"court-road":[11],"border":[19,26],"border-share":[3],"border-after":[11],"prayer-night":[1],"prayer-contact":[4],"agreement-method":[16],"alone":[2],"battle":[25]};
 function v8Position(node,line){
  if(!Object.hasOwn(STORY,node))return null;
  return Number.isInteger(line)&&line>=0&&line<STORY[node].lines.length?line:null;
@@ -151,10 +153,10 @@ function v3Position(node,line){
 // 既読は full-v1 / full-v2 / full-v3 からの移行だけ、行の対応で移す。それ以外の旧版の既読はリセットする（従来の方針）。
 // 既読の移行の最後に、最新の書き換え（V7_REPLACED）の既読を外す。旧版の既読もここを通る。
 function migrateSeen(seen,rev){
- return migrateSeenBase(seen,rev).filter(k=>{const i=k.lastIndexOf(':'),node=k.slice(0,i),line=Number(k.slice(i+1));return !(V7_REPLACED[node]||[]).includes(line)&&!(V8_REPLACED[node]||[]).includes(line);});
+ return migrateSeenBase(seen,rev).filter(k=>{const i=k.lastIndexOf(':'),node=k.slice(0,i),line=Number(k.slice(i+1));return !(V7_REPLACED[node]||[]).includes(line)&&!(V8_REPLACED[node]||[]).includes(line)&&!(V9_REPLACED[node]||[]).includes(line);});
 }
 function migrateSeenBase(seen,rev){
- if(rev==='full-v8'||rev==='full-v7')return migrateSeenV7(seen);
+ if(rev==='full-v9'||rev==='full-v8'||rev==='full-v7')return migrateSeenV7(seen);
  if(rev==='full-v6')return migrateSeenV6(seen);
  if(rev==='full-v5')return migrateSeenV5(seen);
  if(rev==='full-v4')return migrateSeenV4(seen);
@@ -185,7 +187,7 @@ function migrateSeenBase(seen,rev){
 function migrateState(s){
  if(!s||typeof s!=='object'||typeof s.node!=='string')return{ok:false,reason:'セーブの中身が読めません'};
  if(s.contentRevision===OPENING_REV)return valid(s)?{ok:true,state:s}:{ok:false,reason:'本文の位置が範囲外です'};
- if(s.contentRevision==='full-v8'||s.contentRevision==='full-v7'){const t={...clone(s),contentRevision:OPENING_REV};return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
+ if(s.contentRevision==='full-v9'||s.contentRevision==='full-v8'||s.contentRevision==='full-v7'){const t={...clone(s),contentRevision:OPENING_REV};return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
  if(s.contentRevision==='full-v6'){const t={...clone(s),contentRevision:OPENING_REV};return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
  const rev=s.contentRevision===undefined?'unmarked-original':s.contentRevision;
  let v3node,v3line;
