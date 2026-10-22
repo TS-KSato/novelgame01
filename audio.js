@@ -323,6 +323,51 @@ function applyBgm(){
   bgmCur=startTrack(buf,track,bgmWant.once);
  });
 }
+// 設定画面の参考音。既存素材の短い区間を使う。冒頭の無音を避け、音量は各カテゴリの設定と内部ゲインに従う。
+// rain：ほぼ一定の雨音のため 3 秒から。footsteps_stone：1歩目 0.32 秒・2歩目 0.70 秒・3歩目 1.30 秒（4歩目 1.93 秒は含めない）。
+const PREVIEW={
+ amb:{file:'ambience/rain',offset:3,dur:2.4,fadeIn:.35,fadeOut:.6,gain:()=>AMB_GAIN.rain},
+ se:{file:'se/footsteps_stone',offset:.28,dur:1.45,fadeIn:.02,fadeOut:.25,gain:()=>SE_GAIN.footsteps_stone},
+};
+let prev=null,prevToken=0,previewOpen=false,previewCount=0,prevEnd=0;
+// 参考音を止める。切り替えは短いフェードで行い、同じ種類の母線の抑えを戻す。
+function stopPreview(){
+ prevToken++;
+ if(prev){
+  const p=prev;prev=null;
+  clearTimeout(p.timer);
+  if(ctx){
+   const t=ctx.currentTime;
+   try{p.g.gain.cancelScheduledValues(t);p.g.gain.setValueAtTime(p.g.gain.value,t);p.g.gain.linearRampToValueAtTime(0,t+.06);p.src.stop(t+.08);prevEnd=t+.08;}catch{}
+  }
+  applyMix();
+ }
+}
+// 参考音を一回鳴らす。設定画面が開いていて、音がONで、その種類が0%でないときだけ。読み込みが遅れても、閉じた後や別の操作の後には鳴らさない。
+function preview(kind){
+ const P=PREVIEW[kind];
+ if(!P||!previewOpen||!on||!ctx||!(mix[kind]>0))return;
+ stopPreview();
+ const token=prevToken;
+ load('assets/audio/'+P.file+'.mp3').then(buf=>{
+  if(!buf||token!==prevToken||!previewOpen||!on||!ctx)return;
+  // 前の参考音が止まった後に鳴らす（重ならない）。
+  const t=Math.max(ctx.currentTime+.02,prevEnd);
+  const src=ctx.createBufferSource(),g=ctx.createGain();
+  const level=BUS[kind]*mix[kind]*P.gain();
+  src.buffer=buf;src.connect(g);g.connect(master);
+  g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(level,t+P.fadeIn);
+  g.gain.setValueAtTime(level,t+P.dur-P.fadeOut);
+  g.gain.linearRampToValueAtTime(0,t+P.dur);
+  // 同じ種類の音（環境音や効果音）は、試聴の間だけ抑える。曲や環境音は止めず、位置も変えない。
+  (kind==='amb'?ambBus:seBus).gain.setTargetAtTime(0,t,.03);
+  src.start(t,P.offset,P.dur);
+  const timer=setTimeout(()=>{if(prev&&prev.src===src){prev=null;applyMix();}},(P.dur+.1)*1000);
+  prev={src,g,timer,level};
+  previewCount++;
+ });
+}
 function preload(){
  for(const n of Object.keys(AMB_GAIN))load(AMB_FILE(n));
  for(const n of Object.keys(SE_GAIN))load(SE_FILE(n));
@@ -354,6 +399,9 @@ return {
  },
 
  // 種類別の音量（p は 0〜100）。0 はその種類だけを無音にする。曲や環境音は止めず、再生位置も変えない。
+ // 設定画面の開閉。閉じたら参考音を止める。
+ setPreviewOpen(v){previewOpen=!!v;if(!previewOpen)stopPreview();},
+ preview(kind){preview(kind);},
  setMix(k,p){
   if(!(k in mix))return;
   mix[k]=Math.min(100,Math.max(0,Number(p)||0))/100;
@@ -385,7 +433,7 @@ return {
  resume(){if(ctx&&on)ctx.resume().catch(()=>{});},
  plan(node,line){const c=cueAt(node,line);return{amb:ambienceAt(node,line),se:seAt(node,line),bgm:c===undefined?'(keep)':c.track};},
  // 確認用。現在鳴っている環境音・単発音の数など（操作には使わない）。
- status(){return{on,ctxState:ctx?ctx.state:null,env:cur?cur.name:null,wanted:wanted?wanted.name:null,loopSources:cur?cur.sources.length:0,bgm:bgmCur?bgmCur.name:null,bgmStarts,bgmWant:bgmWant?bgmWant.track:null,bgmDone:bgmCur?bgmCur.done:null,seActive:seActive.size,fired,failed:failed.slice(),masterGain:master?master.gain.value:null};},
+ status(){return{on,previewCount,previewActive:!!prev,previewLevel:prev?prev.level:null,ctxState:ctx?ctx.state:null,env:cur?cur.name:null,wanted:wanted?wanted.name:null,loopSources:cur?cur.sources.length:0,bgm:bgmCur?bgmCur.name:null,bgmStarts,bgmWant:bgmWant?bgmWant.track:null,bgmDone:bgmCur?bgmCur.done:null,seActive:seActive.size,fired,failed:failed.slice(),masterGain:master?master.gain.value:null};},
  failedFiles(){return failed.slice();}
 };
 })();
