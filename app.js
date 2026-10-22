@@ -1,6 +1,6 @@
 'use strict';
 // 全編統合稿 v6（full-v6）。v5 からは行の位置が変わる場面だけを V5_TO_V6 で移す。旧版は FULL_MIGRATIONS → V1_TO_V2 → V2_TO_V3 → 同じ位置 → V4_TO_V5 → V5_TO_V6 の順に通す。
-const OPENING_REV='full-v13',OPENING_BACKUP_KEY='zelg-v1-backup-full-v13';
+const OPENING_REV='full-v14',OPENING_BACKUP_KEY='zelg-v1-backup-full-v14';
 // 序章の周辺減光・ぼかし（body.dream-on）の対象場面。
 const DREAM_SCENE='prologue';
 const $=s=>document.getElementById(s),KEY='zelg-v1';let persist={seen:[],ends:[],slots:[null,null,null],auto:null,settings:{speed:38,sound:false,mix:{bgm:100,amb:100,se:100}}},st=null,typing=null,autoTimer=null,skipTimer=null,auto=false,skip=false,full='',chars=[],at=0,quietRender=false;
@@ -88,6 +88,8 @@ function alleyV11Line(line){
  return line<=2?line:line<=6?3:line+1;
 }
 // 旧版の位置を移す。書き換えた行の既読は、既読の移行の最後に外す。
+// full-v13 → full-v14。紐の描写（握る・結ぶ・ほどく）の整理。行数・位置は同じ。書き換えた行の既読は引き継がない。
+const V13_REPLACED={"rescue":[51,56],"scholar":[17],"court-after":[15,37],"races-yard":[6,15],"neia":[9]};
 // full-v12 → full-v13。lonely の 3 行の文章を整える（行数・位置は同じ）。書き換えた行の既読は引き継がない。
 const V12_REPLACED={"lonely":[18,26,27]};
 // full-v11 → full-v12。ネイアとの遭遇前の独白（lonely）の 2 行を削除（旧 8 行目と 30 行目）。行位置は 8 以降を −1、旧 30 行目以降を −2。
@@ -101,10 +103,13 @@ function mapV11SeenKey(k){
  return node==='lonely'?node+':'+lonelyV12Line(Number(k.slice(i+1))):k;
 }
 // 旧版の位置を現在の版へ移す。alley は full-v11 より前の版だけ、lonely は full-v12 より前の版すべてを移す。
+// 保存の版の順。revAt が −1 は full-v10 より前の版。
+const REV_ORDER=['full-v10','full-v11','full-v12','full-v13','full-v14'];
+const revAt=r=>REV_ORDER.indexOf(r);
 function toCurrent(t,fromRev){
- const at=['full-v11','full-v12'].indexOf(fromRev);
- if(at<0&&t.node==='alley')t.line=alleyV11Line(t.line);
- if(at<1&&t.node==='lonely')t.line=lonelyV12Line(t.line);
+ const at=revAt(fromRev);
+ if(at<1&&t.node==='alley')t.line=alleyV11Line(t.line);
+ if(at<2&&t.node==='lonely')t.line=lonelyV12Line(t.line);
  t.contentRevision=OPENING_REV;
  return t;
 }
@@ -188,14 +193,18 @@ function v3Position(node,line){
 // 既読の移行の最後に、最新の書き換え（V7_REPLACED）の既読を外す。旧版の既読もここを通る。
 const uniqueKeys=list=>list.filter((x,i)=>list.indexOf(x)===i);
 function migrateSeen(seen,rev){
+ const at=revAt(rev);
+ const keep=(list,filter)=>list.filter(x=>{const i=x.lastIndexOf(':'),node=x.slice(0,i),line=Number(x.slice(i+1));return !(filter[node]||[]).includes(line);});
  let k=migrateSeenBase(seen,rev);
- if(!['full-v10','full-v11','full-v12'].includes(rev))k=k.filter(x=>{const i=x.lastIndexOf(':'),node=x.slice(0,i),line=Number(x.slice(i+1));return !(V7_REPLACED[node]||[]).includes(line)&&!(V8_REPLACED[node]||[]).includes(line)&&!(V9_REPLACED[node]||[]).includes(line);});
- if(!['full-v11','full-v12'].includes(rev)){k=uniqueKeys(k.map(mapV10SeenKey));k=k.filter(x=>{const i=x.lastIndexOf(':'),node=x.slice(0,i),line=Number(x.slice(i+1));return !(V10_REPLACED[node]||[]).includes(line);});}
- if(rev!=='full-v12'){k=uniqueKeys(k.map(mapV11SeenKey));k=k.filter(x=>{const i=x.lastIndexOf(':'),node=x.slice(0,i),line=Number(x.slice(i+1));return !(V11_REPLACED[node]||[]).includes(line);});}
- return k.filter(x=>{const i=x.lastIndexOf(':'),node=x.slice(0,i),line=Number(x.slice(i+1));return !(V12_REPLACED[node]||[]).includes(line);});
+ if(at<0){k=keep(k,V7_REPLACED);k=keep(k,V8_REPLACED);k=keep(k,V9_REPLACED);}
+ if(at<1){k=uniqueKeys(k.map(mapV10SeenKey));k=keep(k,V10_REPLACED);}
+ if(at<2){k=uniqueKeys(k.map(mapV11SeenKey));k=keep(k,V11_REPLACED);}
+ if(at<3)k=keep(k,V12_REPLACED);
+ if(at<4)k=keep(k,V13_REPLACED);
+ return k;
 }
 function migrateSeenBase(seen,rev){
- if(rev==='full-v12'||rev==='full-v11'||rev==='full-v10'||rev==='full-v9'||rev==='full-v8'||rev==='full-v7')return migrateSeenV7(seen);
+ if(['full-v13','full-v12','full-v11','full-v10','full-v9','full-v8','full-v7'].includes(rev))return migrateSeenV7(seen);
  if(rev==='full-v6')return migrateSeenV6(seen);
  if(rev==='full-v5')return migrateSeenV5(seen);
  if(rev==='full-v4')return migrateSeenV4(seen);
@@ -226,7 +235,7 @@ function migrateSeenBase(seen,rev){
 function migrateState(s){
  if(!s||typeof s!=='object'||typeof s.node!=='string')return{ok:false,reason:'セーブの中身が読めません'};
  if(s.contentRevision===OPENING_REV)return valid(s)?{ok:true,state:s}:{ok:false,reason:'本文の位置が範囲外です'};
- if(s.contentRevision==='full-v11'||s.contentRevision==='full-v12'){const t=toCurrent({...clone(s)},s.contentRevision);return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
+ if(['full-v11','full-v12','full-v13'].includes(s.contentRevision)){const t=toCurrent({...clone(s)},s.contentRevision);return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
  if(s.contentRevision==='full-v10'||s.contentRevision==='full-v9'||s.contentRevision==='full-v8'||s.contentRevision==='full-v7'){const t=toCurrent({...clone(s)},s.contentRevision);return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
  if(s.contentRevision==='full-v6'){const t=toCurrent({...clone(s)},'full-v6');return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
  const rev=s.contentRevision===undefined?'unmarked-original':s.contentRevision;
