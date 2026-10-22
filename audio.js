@@ -64,9 +64,11 @@ const SOUNDS=[
  ['arena','arena-001','cloth_rustle'],
  ['border','border-020','cloth_rustle'],
 ];
-let ctx=null,master=null,bgmBus=null,ambBus=null,seBus=null,on=false,vol=.22,wanted=null,cur=null,failed=[],fired=0;
+let ctx=null,master=null,bgmBus=null,ambBus=null,seBus=null,on=false,wanted=null,cur=null,failed=[],fired=0;
 // 種類別の音量（0〜1）。内部の BUS と掛け合わせて各母線に入る。変更は短い時間で滑らかに移す（曲は止めない）。
 const mix={bgm:1,amb:1,se:1};
+// 母線の基準音量。これまでの既定の全体音量（0.22）に固定する。種類別の値 100% がこれまでの既定バランスに等しい。利用者が変える全体音量はない。
+const MASTER_LEVEL=.22;
 const MIX_TAU=.05;
 let bgmWant=null,bgmCur=null,deferred=false,bgmStarts=0;
 const lastSe={};const SE_COOLDOWN=1.5; // 同じ行への再入場や連続操作で、同じ効果音が重なるのを防ぐ（別の行の同じ音は妨げない）
@@ -211,7 +213,7 @@ function applyMaster(){
  if(!master)return;
  const t=ctx.currentTime,g=master.gain;
  g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);
- if(on)g.setTargetAtTime(vol,t,.4);else g.linearRampToValueAtTime(0,t+.05);
+ if(on)g.setTargetAtTime(MASTER_LEVEL,t,.4);else g.linearRampToValueAtTime(0,t+.05);
 }
 
 // 環境音のループ。町の通りだけは、冒頭が強く末尾がほぼ無音のため、区間を等パワーで重ねて切れ目を埋める。
@@ -328,8 +330,7 @@ function preload(){
 
 return {
  // 起動時：保存された音のON/OFFを反映する。ブラウザは操作前の再生を許さないため、最初の操作で再開する。
- init(v,volume,m){
-  vol=volume;
+ init(v,m){
   if(m)for(const k of Object.keys(mix))mix[k]=Math.min(100,Math.max(0,Number(m[k])||0))/100;
   if(v)this.set(true);
   document.addEventListener('pointerdown',()=>{if(ctx&&on)ctx.resume().catch(()=>{});},{capture:true});
@@ -351,12 +352,7 @@ return {
   seActive.clear();
   return true;
  },
- setVolume(v){
-  vol=v;
-  if(!master||!on)return;
-  const t=ctx.currentTime,g=master.gain;
-  g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);g.setTargetAtTime(vol,t,MIX_TAU);
- },
+
  // 種類別の音量（p は 0〜100）。0 はその種類だけを無音にする。曲や環境音は止めず、再生位置も変えない。
  setMix(k,p){
   if(!(k in mix))return;

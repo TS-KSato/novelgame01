@@ -3,7 +3,8 @@
 const OPENING_REV='full-v7',OPENING_BACKUP_KEY='zelg-v1-backup-full-v7';
 // 序章の周辺減光・ぼかし（body.dream-on）の対象場面。
 const DREAM_SCENE='prologue';
-const $=s=>document.getElementById(s),KEY='zelg-v1';let persist={seen:[],ends:[],slots:[null,null,null],auto:null,settings:{speed:38,volume:.22,sound:false,mix:{bgm:100,amb:100,se:100}}},st=null,typing=null,autoTimer=null,skipTimer=null,auto=false,skip=false,full='',chars=[],at=0,quietRender=false;
+const $=s=>document.getElementById(s),KEY='zelg-v1';let persist={seen:[],ends:[],slots:[null,null,null],auto:null,settings:{speed:38,sound:false,mix:{bgm:100,amb:100,se:100}}},st=null,typing=null,autoTimer=null,skipTimer=null,auto=false,skip=false,full='',chars=[],at=0,quietRender=false;
+const MIX_BASE=.22; // 旧の全体音量の基準（既定値）。読込時の移行で使うため、読込より前に定義する。
 try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&Array.isArray(p.seen)&&Array.isArray(p.ends)&&Array.isArray(p.slots))persist={...persist,...p,settings:{...persist.settings,...(p.settings&&typeof p.settings==='object'?p.settings:{})}};}catch{}
 cleanSettings();
 // 表示用の改行。空行は一つにまとめ、句点の後で改行する（閉じ括弧の後で改行）。本文データは変えない。
@@ -11,15 +12,26 @@ function displayText(t){
  return String(t).split(/\n+/).map(s=>s.trim()).filter(Boolean).map(s=>s.replace(/。([」』）]?)/g,(m,q,o,str)=>o+m.length<str.length?m+'\n':m)).join('\n');
 }
 function toast(t){$('toast').textContent=t;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2600);}
-// 音量設定の検査。欠損・破損・範囲外は既定値へ戻す（他の保存項目には触れない）。
-// 全体音量は保存値 0〜0.5（既定 0.22）、種類別は 0〜100（既定 100）。
+// 音量設定の検査と移行。旧版の「全体音量 × 種類別」を、種類別の値へ一度だけ引き継ぐ。
+// 全体音量の基準は 0.22（これまでの既定値）。新しい100%は既定の音量バランスに等しい。
+// 移行済みは mixVer が 2 として保存され、以後は再計算しない。全体音量の値は保存から外す。
 function cleanSettings(){
  const s=persist.settings;
- s.volume=typeof s.volume==='number'&&Number.isFinite(s.volume)?Math.min(.5,Math.max(0,s.volume)):.22;
  const m=s.mix&&typeof s.mix==='object'?s.mix:{};
- s.mix={bgm:mixPct(m.bgm),amb:mixPct(m.amb),se:mixPct(m.se)};
+ if(s.mixVer!==2){
+  const v=typeof s.volume==='number'&&Number.isFinite(s.volume)?Math.min(.5,Math.max(0,s.volume)):MIX_BASE;
+  s.mix={bgm:mixScaled(m.bgm,v),amb:mixScaled(m.amb,v),se:mixScaled(m.se,v)};
+  s.mixVer=2;
+  delete s.volume;
+  write();
+ }else{
+  s.mix={bgm:mixPct(m.bgm),amb:mixPct(m.amb),se:mixPct(m.se)};
+  if('volume' in s){delete s.volume;write();}
+ }
  s.sound=s.sound===true;
 }
+// 旧の全体音量を掛けた値（上限 100%）。旧全体音量が基準より大きい場合は 100% で頭打ちにする。
+function mixScaled(x,v){return Math.round(Math.min(100,mixPct(x)*v/MIX_BASE));}
 function mixPct(x){return typeof x==='number'&&Number.isFinite(x)?Math.round(Math.min(100,Math.max(0,x))):100;}
 function write(){try{localStorage.setItem(KEY,JSON.stringify(persist));return true;}catch{toast('ブラウザ保存が使えません。セーブコードを書き出してください。');return false;}}
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -222,15 +234,15 @@ function relationships(){return Object.entries(CAST).map(([k,v])=>'<div class="r
 function memories(){modal('記憶の断片','<p class="muted">旅で集めた、人が確かに生きていた証。 '+(st?.fragments.length||0)+' / 5</p>'+Object.entries(FRAGMENTS).map(([id,f])=>st?.fragments.includes(id)?'<div class="line"><span class="badge">◇</span>'+f[0]+'<p class="muted">'+f[1]+'</p></div>':'<div class="line muted">◇　まだ見つかっていない記憶</div>').join('')+'<h3>旅で結んだ関係</h3>'+relationships());}
 function collection(){modal('記憶の書庫','<p class="muted">辿り着いた結末 '+persist.ends.length+' / 6　未到達の結末は伏せられています。</p>'+Object.entries(ENDINGS).map(([id,e])=>persist.ends.includes(id)?'<div class="line"><span class="badge">'+e.no+'</span>'+e.name+'<p class="muted">'+e.hint+'</p></div>':'<div class="line muted"><span class="badge">'+e.no+'</span>封じられた記憶</div>').join(''));}
 function encodeSaveJSON(data){const bytes=new TextEncoder().encode(JSON.stringify(data));let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));return btoa(binary);}
-function saves(){modal('設定・セーブ','<div class="row"><label for="speed">文字の速さ</label><input id="speed" type="range" min="0" max="75" value="'+(75-persist.settings.speed)+'"><span>速い →</span></div><h3>音声</h3><div class="mix"><span>サウンド</span><button class="btn" id="soundToggle" type="button">音 OFF</button><span></span></div><div class="mix"><label for="volume">全体音量</label><input id="volume" type="range" min="0" max="100" step="1" value="'+volumePct()+'"><output id="volumeOut" for="volume">'+volumePct()+'%</output></div><div class="mix"><label for="mixBgm">BGM</label><input id="mixBgm" type="range" min="0" max="100" step="1" value="'+persist.settings.mix.bgm+'"><output id="mixBgmOut" for="mixBgm">'+persist.settings.mix.bgm+'%</output></div><div class="mix"><label for="mixAmb">環境音<small>町の喧騒・水車・雨など</small></label><input id="mixAmb" type="range" min="0" max="100" step="1" value="'+persist.settings.mix.amb+'"><output id="mixAmbOut" for="mixAmb">'+persist.settings.mix.amb+'%</output></div><div class="mix"><label for="mixSe">効果音</label><input id="mixSe" type="range" min="0" max="100" step="1" value="'+persist.settings.mix.se+'"><output id="mixSeOut" for="mixSe">'+persist.settings.mix.se+'%</output></div><p class="muted">進行は自動保存されます。手動スロットは各ボタンで保存・復元できます。</p><div id="slots"></div><h3>セーブコードで端末間の引き継ぎ</h3><textarea id="code" aria-label="セーブコード" placeholder="書き出したコードを、ここへ貼り付けて復元できます"></textarea><div class="row"><button class="btn" id="export">コードを書き出す</button><button class="btn" id="import">コードから復元</button></div><p class="muted">全6結末。横向きで、文章をタップして進みます。端末のブラウザごとに保存されます。</p>');
-$('speed').oninput=e=>{persist.settings.speed=75-Number(e.target.value);write();};$('volume').oninput=e=>{const p=Number(e.target.value);persist.settings.volume=p/200;$('volumeOut').textContent=p+'%';AudioCue.setVolume(persist.settings.volume);write();};
-for(const k of ['bgm','amb','se']){const id=k==='amb'?'mixAmb':k==='bgm'?'mixBgm':'mixSe';$(id).oninput=e=>{const p=Number(e.target.value);persist.settings.mix[k]=p;$(id+'Out').textContent=p+'%';AudioCue.setMix(k,p);write();};}
-$('soundToggle').onclick=()=>audio();soundLabel();slotUI();
+function saves(){modal('設定・セーブ','<div class="row"><label for="speed">文字の速さ</label><input id="speed" type="range" min="0" max="75" value="'+(75-persist.settings.speed)+'"><span>速い →</span></div><h3>音声</h3><div class="mix"><label for="mixBgm">BGM</label><input id="mixBgm" type="range" min="0" max="100" step="1" value="'+persist.settings.mix.bgm+'"><output id="mixBgmOut" for="mixBgm">'+persist.settings.mix.bgm+'%</output></div><div class="mix"><label for="mixAmb">環境音<small>町の喧騒・水車・雨など</small></label><input id="mixAmb" type="range" min="0" max="100" step="1" value="'+persist.settings.mix.amb+'"><output id="mixAmbOut" for="mixAmb">'+persist.settings.mix.amb+'%</output></div><div class="mix"><label for="mixSe">効果音</label><input id="mixSe" type="range" min="0" max="100" step="1" value="'+persist.settings.mix.se+'"><output id="mixSeOut" for="mixSe">'+persist.settings.mix.se+'%</output></div><p class="muted">進行は自動保存されます。手動スロットは各ボタンで保存・復元できます。</p><div id="slots"></div><h3>セーブコードで端末間の引き継ぎ</h3><textarea id="code" aria-label="セーブコード" placeholder="書き出したコードを、ここへ貼り付けて復元できます"></textarea><div class="row"><button class="btn" id="export">コードを書き出す</button><button class="btn" id="import">コードから復元</button></div><p class="muted">全6結末。横向きで、文章をタップして進みます。端末のブラウザごとに保存されます。</p>');
+$('speed').oninput=e=>{persist.settings.speed=75-Number(e.target.value);write();};for(const k of ['bgm','amb','se']){const id=k==='amb'?'mixAmb':k==='bgm'?'mixBgm':'mixSe';$(id).oninput=e=>{const p=Number(e.target.value);persist.settings.mix[k]=p;$(id+'Out').textContent=p+'%';AudioCue.setMix(k,p);write();};}
+slotUI();
 $('export').onclick=()=>{const state=st||persist.auto?.state;if(!valid(state)){toast('まず物語をはじめてください');return;}const data={v:1,state,ends:persist.ends,seen:persist.seen};$('code').value='ZELG1.'+encodeSaveJSON(data);$('code').select();toast('コードを選択しました。コピーして保管してください。');};
 $('import').onclick=()=>{try{const code=$('code').value.trim();if(!code.startsWith('ZELG1.')||code.length>1000000)throw Error();const p=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(code.slice(6)),c=>c.charCodeAt(0))));if(p.v!==1)throw Error();const mig=migrateImport(p);if(!mig.ok){toast(mig.reason);return;}p.state=mig.state;p.seen=mig.seen;if(!valid(p.state)||!Array.isArray(p.ends)||!p.ends.every(e=>Object.hasOwn(ENDINGS,e))||!Array.isArray(p.seen)||!p.seen.every(x=>typeof x==='string'&&x.length<100))throw Error();persist.ends=[...new Set([...persist.ends,...p.ends])];persist.seen=[...new Set([...persist.seen,...p.seen])];$('modal').close();start(p.state,{quiet:true});toast('セーブコードを復元しました');}catch{toast('有効なセーブコードを入力してください。');}};}
 function slotUI(){$('slots').innerHTML='';persist.slots.slice(0,3).forEach((slot,i)=>{const row=document.createElement('div');row.className='row';const label=document.createElement('span');label.textContent='0'+(i+1)+'　'+(valid(slot?.state)?STORY[slot.state.node].title+' · '+new Date(slot.time).toLocaleString('ja-JP'):(slot?.state?'読めないセーブ：'+saveReason(slot.state):'空のスロット'));const buttons=document.createElement('span'),save=document.createElement('button'),load=document.createElement('button');save.className=load.className='btn';save.textContent='保存';load.textContent='読込';save.disabled=!st;load.disabled=!valid(slot?.state);save.onclick=()=>{if(slot&&!confirm('このスロットを上書きしますか？'))return;persist.slots[i]=archiveState();write();slotUI();toast('保存しました');};load.onclick=()=>{if(st&&!confirm('現在の進行を、このセーブの状態へ戻しますか？'))return;$('modal').close();start(slot.state,{quiet:true});};buttons.append(save,load);row.append(label,buttons);$('slots').append(row);});}
-function soundLabel(){$('sound').innerHTML='♪ <span>音 '+(AudioCue.isOn()?'ON':'OFF')+'</span>';const t=$('soundToggle');if(t)t.textContent='音 '+(AudioCue.isOn()?'ON':'OFF');}
-function volumePct(){return Math.round(persist.settings.volume*200);}
+const SND_ON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+const SND_OFF='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+function soundLabel(){const on=AudioCue.isOn(),b=$('sound');b.setAttribute('aria-pressed',String(on));b.classList.toggle('is-on',on);b.classList.toggle('is-off',!on);b.innerHTML=(on?SND_ON:SND_OFF)+'<span>音 '+(on?'ON':'OFF')+'</span>';}
 function audio(){const want=!AudioCue.isOn();if(!AudioCue.set(want)){toast('このブラウザでは音を再生できません');return;}persist.settings.sound=want;write();soundLabel();}
 $('new').onclick=()=>{if(persist.auto&& !confirm('新しい旅を始めます。自動セーブは更新されます。よろしいですか？'))return;if(!AudioCue.isOn())audio();start(fresh());};$('continue').onclick=()=>{if(valid(persist.auto?.state)){if(!AudioCue.isOn())audio();start(persist.auto.state,{quiet:true});}else toast('つづきから読めません：'+saveReason(persist.auto?.state));};$('dialogue').onclick=next;$('sound').onclick=audio;$('collection').onclick=collection;$('settings').onclick=saves;$('save').onclick=saves;$('memory').onclick=memories;$('close').onclick=()=>$('modal').close();$('log').onclick=()=>{const list=document.createElement('div');for(const[n,t]of st.log){const line=document.createElement('div');line.className='line';const name=document.createElement('div');name.className='badge';name.textContent=n||'地の文';const body=document.createElement('div');body.textContent=displayText(t);line.append(name,body);list.append(line);}modal('旅の履歴',list);$('modal').scrollTop=$('modal').scrollHeight;};
 $('auto').onclick=()=>{if(skip)stopTimers();auto=!auto;$('auto').classList.toggle('active',auto);clearTimeout(autoTimer);if(auto&&!typing)autoTimer=setTimeout(next,2000);};$('skip').onclick=()=>{if(skip){stopTimers();return;}clearTimeout(autoTimer);auto=false;$('auto').classList.remove('active');skip=true;$('skip').classList.add('active');skipTimer=setInterval(()=>{if(!persist.seen.includes(st.node+':'+st.line)||STORY[st.node].choices&&st.line===STORY[st.node].lines.length-1){stopTimers();return;}next();},160);};
@@ -264,5 +276,5 @@ $('appGuide').onclick=appGuide;
 migrateStorage();
 galleryScan(persist);
 initGallery();
-AudioCue.init(persist.settings.sound===true,persist.settings.volume,persist.settings.mix);soundLabel();
+AudioCue.init(persist.settings.sound===true,persist.settings.mix);soundLabel();
 title();

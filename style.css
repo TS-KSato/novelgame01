@@ -125,3 +125,8 @@ body.dream-on .dream{display:block}
 .mix input[type=range]{width:100%;min-width:0;min-height:32px;margin:0}
 .mix output{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .mix .btn{justify-self:start}
+/* 音声のON/OFF（プレイ画面）：状態はアイコンと色で示す */
+#sound{display:inline-flex;align-items:center;gap:4px}
+#sound svg{width:16px;height:16px;flex:none}
+#sound.is-on{color:var(--gold)}
+#sound.is-off{color:var(--muted);opacity:.8}
