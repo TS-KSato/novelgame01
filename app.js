@@ -1,6 +1,6 @@
 'use strict';
 // 全編統合稿 v6（full-v6）。v5 からは行の位置が変わる場面だけを V5_TO_V6 で移す。旧版は FULL_MIGRATIONS → V1_TO_V2 → V2_TO_V3 → 同じ位置 → V4_TO_V5 → V5_TO_V6 の順に通す。
-const OPENING_REV='full-v7',OPENING_BACKUP_KEY='zelg-v1-backup-full-v7';
+const OPENING_REV='full-v8',OPENING_BACKUP_KEY='zelg-v1-backup-full-v8';
 // 序章の周辺減光・ぼかし（body.dream-on）の対象場面。
 const DREAM_SCENE='prologue';
 const $=s=>document.getElementById(s),KEY='zelg-v1';let persist={seen:[],ends:[],slots:[null,null,null],auto:null,settings:{speed:38,sound:false,mix:{bgm:100,amb:100,se:100}}},st=null,typing=null,autoTimer=null,skipTimer=null,auto=false,skip=false,full='',chars=[],at=0,quietRender=false;
@@ -75,6 +75,24 @@ function v6Position(node,line){
 }
 // full-v6 → full-v7。行の位置は変わらない。書き換えた行の既読は引き継がない。
 const V6_REPLACED={"border":[67]};
+// full-v7 → full-v8。行の位置は変わらない。書き換えた行の既読は引き継がない（prologue-004、battle-035）。
+const V7_REPLACED={"prologue":[3],"battle":[34]};
+function v8Position(node,line){
+ if(!Object.hasOwn(STORY,node))return null;
+ return Number.isInteger(line)&&line>=0&&line<STORY[node].lines.length?line:null;
+}
+function migrateSeenV7(seen){
+ if(!Array.isArray(seen))return [];
+ const out=[];
+ for(const id of seen){
+  if(typeof id!=='string')continue;
+  const i=id.lastIndexOf(':');const node=id.slice(0,i),line=Number(id.slice(i+1));
+  const l8=v8Position(node,line);
+  if(l8===null)continue;
+  const key=node+':'+l8;if(!out.includes(key))out.push(key);
+ }
+ return out;
+}
 function v7Position(node,line){
  if(!Object.hasOwn(STORY,node))return null;
  return Number.isInteger(line)&&line>=0&&line<STORY[node].lines.length?line:null;
@@ -129,7 +147,12 @@ function v3Position(node,line){
  return a[line];
 }
 // 既読は full-v1 / full-v2 / full-v3 からの移行だけ、行の対応で移す。それ以外の旧版の既読はリセットする（従来の方針）。
+// 既読の移行の最後に、最新の書き換え（V7_REPLACED）の既読を外す。旧版の既読もここを通る。
 function migrateSeen(seen,rev){
+ return migrateSeenBase(seen,rev).filter(k=>{const i=k.lastIndexOf(':');return !(V7_REPLACED[k.slice(0,i)]||[]).includes(Number(k.slice(i+1)));});
+}
+function migrateSeenBase(seen,rev){
+ if(rev==='full-v7')return migrateSeenV7(seen);
  if(rev==='full-v6')return migrateSeenV6(seen);
  if(rev==='full-v5')return migrateSeenV5(seen);
  if(rev==='full-v4')return migrateSeenV4(seen);
@@ -160,6 +183,7 @@ function migrateSeen(seen,rev){
 function migrateState(s){
  if(!s||typeof s!=='object'||typeof s.node!=='string')return{ok:false,reason:'セーブの中身が読めません'};
  if(s.contentRevision===OPENING_REV)return valid(s)?{ok:true,state:s}:{ok:false,reason:'本文の位置が範囲外です'};
+ if(s.contentRevision==='full-v7'){const t={...clone(s),contentRevision:OPENING_REV};return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
  if(s.contentRevision==='full-v6'){const t={...clone(s),contentRevision:OPENING_REV};return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
  const rev=s.contentRevision===undefined?'unmarked-original':s.contentRevision;
  let v3node,v3line;
