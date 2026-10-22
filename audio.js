@@ -65,6 +65,9 @@ const SOUNDS=[
  ['border','border-020','cloth_rustle'],
 ];
 let ctx=null,master=null,bgmBus=null,ambBus=null,seBus=null,on=false,vol=.22,wanted=null,cur=null,failed=[],fired=0;
+// 種類別の音量（0〜1）。内部の BUS と掛け合わせて各母線に入る。変更は短い時間で滑らかに移す（曲は止めない）。
+const mix={bgm:1,amb:1,se:1};
+const MIX_TAU=.05;
 let bgmWant=null,bgmCur=null,deferred=false,bgmStarts=0;
 const lastSe={};const SE_COOLDOWN=1.5; // 同じ行への再入場や連続操作で、同じ効果音が重なるのを防ぐ（別の行の同じ音は妨げない）
 const bufs={},seActive=new Set();
@@ -193,8 +196,16 @@ function ensure(){
   bgmBus=ctx.createGain();bgmBus.gain.value=BUS.bgm;bgmBus.connect(master);
   ambBus=ctx.createGain();ambBus.gain.value=BUS.amb;ambBus.connect(master);
   seBus=ctx.createGain();seBus.gain.value=BUS.se;seBus.connect(master);
+  applyMix();
   return true;
  }catch{ctx=null;return false;}
+}
+function applyMix(){
+ if(!ctx||!bgmBus)return;
+ const t=ctx.currentTime;
+ bgmBus.gain.setTargetAtTime(BUS.bgm*mix.bgm,t,MIX_TAU);
+ ambBus.gain.setTargetAtTime(BUS.amb*mix.amb,t,MIX_TAU);
+ seBus.gain.setTargetAtTime(BUS.se*mix.se,t,MIX_TAU);
 }
 function applyMaster(){
  if(!master)return;
@@ -317,8 +328,9 @@ function preload(){
 
 return {
  // 起動時：保存された音のON/OFFを反映する。ブラウザは操作前の再生を許さないため、最初の操作で再開する。
- init(v,volume){
+ init(v,volume,m){
   vol=volume;
+  if(m)for(const k of Object.keys(mix))mix[k]=Math.min(100,Math.max(0,Number(m[k])||0))/100;
   if(v)this.set(true);
   document.addEventListener('pointerdown',()=>{if(ctx&&on)ctx.resume().catch(()=>{});},{capture:true});
  },
@@ -339,7 +351,20 @@ return {
   seActive.clear();
   return true;
  },
- setVolume(v){vol=v;applyMaster();},
+ setVolume(v){
+  vol=v;
+  if(!master||!on)return;
+  const t=ctx.currentTime,g=master.gain;
+  g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);g.setTargetAtTime(vol,t,MIX_TAU);
+ },
+ // 種類別の音量（p は 0〜100）。0 はその種類だけを無音にする。曲や環境音は止めず、再生位置も変えない。
+ setMix(k,p){
+  if(!(k in mix))return;
+  mix[k]=Math.min(100,Math.max(0,Number(p)||0))/100;
+  applyMix();
+ },
+ // 現在の母線の実効ゲイン（確認用）。
+ busGains(){return ctx&&bgmBus?{bgm:bgmBus.gain.value,amb:ambBus.gain.value,se:seBus.gain.value,master:master.gain.value}:null;},
  // 行に入ったとき。o.fire=true のときだけ単発の効果音を鳴らす。o.defer=true（スキップ中）は音を切り替えず、停止後に settle で合わせる。
  onLine(node,line,o){
   const a=ambienceAt(node,line);

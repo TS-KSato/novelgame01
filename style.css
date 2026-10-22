@@ -118,3 +118,10 @@ body.dream-on .dream{display:block}
 .cg-msg{position:absolute;left:0;right:0;bottom:12px;margin:0;text-align:center;font-size:12px;color:#d9c79c;text-shadow:0 1px 4px #000}
 #cgOpen small{font:9px Arial;margin-left:6px;color:var(--gold)}
 @media(max-height:520px){.cg-head h2{font-size:14px}.cg-tabs{margin:4px 0 6px}.cg-grid{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px}}
+/* 設定の音量行：項目名・スライダー・数値を別の列に置く（横画面でも重ならないように） */
+.mix{display:grid;grid-template-columns:minmax(0,7.5em) minmax(0,1fr) 3.6em;align-items:center;gap:10px;margin:10px 0}
+.mix label{min-width:0;line-height:1.4}
+.mix label small{display:block;font-size:10px;color:var(--muted);line-height:1.5}
+.mix input[type=range]{width:100%;min-width:0;min-height:32px;margin:0}
+.mix output{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mix .btn{justify-self:start}
