@@ -42,7 +42,7 @@ const BACKGROUNDS={
 const BACKGROUND_NAMES=Object.keys(BACKGROUNDS);
 const BG_SEGMENTS={
   'prologue':[[0,9,'tower_top_night']],
-  'alley':[[0,0,'town_day'],[1,6,'orphanage_gate_day'],[7,24,'town_day']],
+  'alley':[[0,0,'town_day'],[1,7,'orphanage_gate_day'],[8,25,'town_day']],
   'rescue':[[0,22,'town_alley_day'],[23,56,'town_day']],
   'brother':[[0,33,'road_day']],
   'scholar':[[0,53,'mill_day'],[54,77,'mill_room_evening']],
