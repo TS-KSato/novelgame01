@@ -67,8 +67,8 @@ const SOUNDS=[
 let ctx=null,master=null,bgmBus=null,ambBus=null,seBus=null,on=false,wanted=null,cur=null,failed=[],fired=0;
 // 種類別の音量（0〜1）。内部の BUS と掛け合わせて各母線に入る。変更は短い時間で滑らかに移す（曲は止めない）。
 const mix={bgm:1,amb:1,se:1};
-// 母線の基準音量。これまでの既定の全体音量（0.22）に固定する。種類別の値 100% がこれまでの既定バランスに等しい。利用者が変える全体音量はない。
-const MASTER_LEVEL=.22;
+// 母線の基準音量。旧全体音量の上限 0.5 に固定する。種類別 100% = 0.5、既定の 44% で従来の既定バランス（0.22）に等しい。利用者が変える全体音量はない。
+const MASTER_LEVEL=.5;
 const MIX_TAU=.05;
 let bgmWant=null,bgmCur=null,deferred=false,bgmStarts=0;
 const lastSe={};const SE_COOLDOWN=1.5; // 同じ行への再入場や連続操作で、同じ効果音が重なるのを防ぐ（別の行の同じ音は妨げない）

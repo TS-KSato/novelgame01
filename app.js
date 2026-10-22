@@ -4,7 +4,8 @@ const OPENING_REV='full-v7',OPENING_BACKUP_KEY='zelg-v1-backup-full-v7';
 // 序章の周辺減光・ぼかし（body.dream-on）の対象場面。
 const DREAM_SCENE='prologue';
 const $=s=>document.getElementById(s),KEY='zelg-v1';let persist={seen:[],ends:[],slots:[null,null,null],auto:null,settings:{speed:38,sound:false,mix:{bgm:100,amb:100,se:100}}},st=null,typing=null,autoTimer=null,skipTimer=null,auto=false,skip=false,full='',chars=[],at=0,quietRender=false;
-const MIX_BASE=.22; // 旧の全体音量の基準（既定値）。読込時の移行で使うため、読込より前に定義する。
+// 音量設定の基準。旧全体音量の上限 0.5 を共通の基準（種類別 100% = 0.5）にする。旧既定の全体音量は 0.22。読込時の移行で使うため、読込より前に定義する。
+const MIX_REF=.5,MIX_OLD_DEFAULT=.22;
 try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&Array.isArray(p.seen)&&Array.isArray(p.ends)&&Array.isArray(p.slots))persist={...persist,...p,settings:{...persist.settings,...(p.settings&&typeof p.settings==='object'?p.settings:{})}};}catch{}
 cleanSettings();
 // 表示用の改行。空行は一つにまとめ、句点の後で改行する（閉じ括弧の後で改行）。本文データは変えない。
@@ -12,26 +13,31 @@ function displayText(t){
  return String(t).split(/\n+/).map(s=>s.trim()).filter(Boolean).map(s=>s.replace(/。([」』）]?)/g,(m,q,o,str)=>o+m.length<str.length?m+'\n':m)).join('\n');
 }
 function toast(t){$('toast').textContent=t;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2600);}
-// 音量設定の検査と移行。旧版の「全体音量 × 種類別」を、種類別の値へ一度だけ引き継ぐ。
-// 全体音量の基準は 0.22（これまでの既定値）。新しい100%は既定の音量バランスに等しい。
-// 移行済みは mixVer が 2 として保存され、以後は再計算しない。全体音量の値は保存から外す。
+// 音量設定の検査と移行。種類別の値は「実効音量 = 種類別 × 基準 0.5」で扱う。
+// 移行の版（mixVer）：なし/1＝旧全体音量あり（旧カテゴリ × 旧全体音量 ÷ 0.5）、2＝旧版の変換（現在の実効音量を維持するよう × 0.44）、3＝現在。
+// 版3に上がった後は再計算しない。移行の結果は保存し、旧の全体音量は保存から外す。
 function cleanSettings(){
  const s=persist.settings;
  const m=s.mix&&typeof s.mix==='object'?s.mix:{};
- if(s.mixVer!==2){
-  const v=typeof s.volume==='number'&&Number.isFinite(s.volume)?Math.min(.5,Math.max(0,s.volume)):MIX_BASE;
-  s.mix={bgm:mixScaled(m.bgm,v),amb:mixScaled(m.amb,v),se:mixScaled(m.se,v)};
-  s.mixVer=2;
-  delete s.volume;
-  write();
- }else{
+ if(s.mixVer===3){
   s.mix={bgm:mixPct(m.bgm),amb:mixPct(m.amb),se:mixPct(m.se)};
   if('volume' in s){delete s.volume;write();}
+ }else if(s.mixVer===2){
+  // 版2の値は旧の基準 0.22 で掛けてある。現在の実効音量（0.22 × 値）を、基準 0.5 の値へ直す。
+  const f=MIX_OLD_DEFAULT/MIX_REF;
+  s.mix={bgm:mixConv(m.bgm,f),amb:mixConv(m.amb,f),se:mixConv(m.se,f)};
+  s.mixVer=3;delete s.volume;write();
+ }else{
+  // 未移行：新カテゴリ値 = 旧カテゴリ値 × 旧全体音量 ÷ 0.5（旧全体音量が無い・壊れている場合は既定 0.22）。
+  const v=typeof s.volume==='number'&&Number.isFinite(s.volume)?Math.min(MIX_REF,Math.max(0,s.volume)):MIX_OLD_DEFAULT;
+  const f=v/MIX_REF;
+  s.mix={bgm:mixConv(m.bgm,f),amb:mixConv(m.amb,f),se:mixConv(m.se,f)};
+  s.mixVer=3;delete s.volume;write();
  }
  s.sound=s.sound===true;
 }
-// 旧の全体音量を掛けた値（上限 100%）。旧全体音量が基準より大きい場合は 100% で頭打ちにする。
-function mixScaled(x,v){return Math.round(Math.min(100,mixPct(x)*v/MIX_BASE));}
+// 旧カテゴリ値に係数を掛ける（0〜100 の整数。係数は 1 以下なので上限は超えない）。
+function mixConv(x,f){return Math.round(mixPct(x)*f);}
 function mixPct(x){return typeof x==='number'&&Number.isFinite(x)?Math.round(Math.min(100,Math.max(0,x))):100;}
 function write(){try{localStorage.setItem(KEY,JSON.stringify(persist));return true;}catch{toast('ブラウザ保存が使えません。セーブコードを書き出してください。');return false;}}
 const clone=x=>JSON.parse(JSON.stringify(x));
