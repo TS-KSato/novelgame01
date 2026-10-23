@@ -1,6 +1,6 @@
 'use strict';
 // 全編統合稿 v6（full-v6）。v5 からは行の位置が変わる場面だけを V5_TO_V6 で移す。旧版は FULL_MIGRATIONS → V1_TO_V2 → V2_TO_V3 → 同じ位置 → V4_TO_V5 → V5_TO_V6 の順に通す。
-const OPENING_REV='full-v15',OPENING_BACKUP_KEY='zelg-v1-backup-full-v15';
+const OPENING_REV='full-v16',OPENING_BACKUP_KEY='zelg-v1-backup-full-v16';
 // 序章の周辺減光・ぼかし（body.dream-on）の対象場面。
 const DREAM_SCENE='prologue';
 const $=s=>document.getElementById(s),KEY='zelg-v1';let persist={seen:[],ends:[],slots:[null,null,null],auto:null,settings:{speed:38,sound:false,mix:{bgm:100,amb:100,se:100}}},st=null,typing=null,autoTimer=null,skipTimer=null,auto=false,skip=false,full='',chars=[],at=0,quietRender=false;
@@ -116,7 +116,9 @@ function arenaV15SeenKey(k){
  const i=k.lastIndexOf(':'),node=k.slice(0,i);
  return node==='arena'?node+':'+arenaV15Line(Number(k.slice(i+1))):k;
 }
-const REV_ORDER=['full-v10','full-v11','full-v12','full-v13','full-v14','full-v15'];
+// full-v15 → full-v16。朝食場面の 1 行の文章を整える（行数・位置は同じ）。書き換えた行の既読は引き継がない。
+const V16_REPLACED={"arena":[72]};
+const REV_ORDER=['full-v10','full-v11','full-v12','full-v13','full-v14','full-v15','full-v16'];
 const revAt=r=>REV_ORDER.indexOf(r);
 function toCurrent(t,fromRev){
  const at=revAt(fromRev);
@@ -216,10 +218,11 @@ function migrateSeen(seen,rev){
  if(at<3)k=keep(k,V12_REPLACED);
  if(at<4)k=keep(k,V13_REPLACED);
  if(at<5)k=keep(k,V15_REPLACED);
+ if(at<6)k=keep(k,V16_REPLACED);
  return k;
 }
 function migrateSeenBase(seen,rev){
- if(['full-v14','full-v13','full-v12','full-v11','full-v10','full-v9','full-v8','full-v7'].includes(rev))return migrateSeenV7(seen);
+ if(['full-v15','full-v14','full-v13','full-v12','full-v11','full-v10','full-v9','full-v8','full-v7'].includes(rev))return migrateSeenV7(seen);
  if(rev==='full-v6')return migrateSeenV6(seen);
  if(rev==='full-v5')return migrateSeenV5(seen);
  if(rev==='full-v4')return migrateSeenV4(seen);
@@ -250,7 +253,7 @@ function migrateSeenBase(seen,rev){
 function migrateState(s){
  if(!s||typeof s!=='object'||typeof s.node!=='string')return{ok:false,reason:'セーブの中身が読めません'};
  if(s.contentRevision===OPENING_REV)return valid(s)?{ok:true,state:s}:{ok:false,reason:'本文の位置が範囲外です'};
- if(['full-v11','full-v12','full-v13','full-v14'].includes(s.contentRevision)){const t=toCurrent({...clone(s)},s.contentRevision);return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
+ if(['full-v11','full-v12','full-v13','full-v14','full-v15'].includes(s.contentRevision)){const t=toCurrent({...clone(s)},s.contentRevision);return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
  if(s.contentRevision==='full-v10'||s.contentRevision==='full-v9'||s.contentRevision==='full-v8'||s.contentRevision==='full-v7'){const t=toCurrent({...clone(s)},s.contentRevision);return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
  if(s.contentRevision==='full-v6'){const t=toCurrent({...clone(s)},'full-v6');return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
  const rev=s.contentRevision===undefined?'unmarked-original':s.contentRevision;
