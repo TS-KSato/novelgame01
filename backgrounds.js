@@ -45,7 +45,7 @@ const BG_SEGMENTS={
   'alley':[[0,0,'town_day'],[1,7,'orphanage_gate_day'],[8,25,'town_day']],
   'rescue':[[0,22,'town_alley_day'],[23,56,'town_day']],
   'brother':[[0,33,'road_day']],
-  'scholar':[[0,53,'mill_day'],[54,77,'mill_room_evening']],
+  'scholar':[[0,63,'mill_day'],[64,87,'mill_room_evening']],
   'arena':[[0,58,'arena_day'],[59,64,'camp_night'],[65,81,'camp_morning']],
   'court-road':[[0,18,'capital_gate_day']],
   'court':[[0,65,'capital_office_day']],
