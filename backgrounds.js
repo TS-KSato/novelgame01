@@ -3,7 +3,7 @@
 // 指定は場面ID→[開始行, 終了行, 背景名]（行は STORY の lines の添字・両端を含む）。指定のない行は既定の背景（cathedral）。
 // 背景は必要になった時だけ読み込む。起動時の一括読み込みはしない。画像は cover で表示し、縦横比は変えない。
 // 画像を差し替えた時は BG_VERSION を上げる（同じパスでもブラウザが新しい画像を取り直す）。
-const BG_VERSION='4';
+const BG_VERSION='5';
 const BACKGROUNDS={
   cathedral:'assets/cathedral.webp',
   arena_day:'assets/backgrounds/arena_day.webp',
