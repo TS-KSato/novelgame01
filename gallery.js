@@ -97,13 +97,14 @@ function renderGallery(){
    const label=document.createElement('span');
    label.className='cg-name';
    label.textContent=def.title;
+   btn.setAttribute('aria-label',def.title);
    btn.append(img,label);
    btn.onclick=()=>openViewer(name);
   }else{
    btn.disabled=true;
    btn.classList.add('locked');
    btn.setAttribute('aria-label','未解放');
-   btn.innerHTML=LOCK_SVG+'<span>未解放</span>';
+   btn.innerHTML=LOCK_SVG;
   }
   grid.append(btn);
  }
