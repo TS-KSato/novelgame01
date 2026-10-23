@@ -35,7 +35,7 @@ const CG_SEGMENTS={
   rescue:[['rescue-037','rescue-039','riene_first_aid']],
   'battle-approach':[['battle-approach-031','battle-approach-032','kyle_reunion']],
   battle:[['battle-011','battle-011','calamity_battle'],['battle-039','battle-041','kyle_last_words']],
-  scholar:[['scholar-046','scholar-050','waterwheel']],
+  scholar:[['scholar-046','scholar-049','waterwheel']],
   'races-yard':[['races-yard-018','races-yard-023','scholar_detour'],['races-yard-024k','races-yard-024s','riene_tia_care']],
   brother:[['brother-014','brother-016','farewell']],
   confession:[['confession-014','confession-018','confession'],['confession-027','confession-028','confrontation']],
