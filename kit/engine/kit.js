@@ -1,8 +1,9 @@
 // ノベルゲーム制作キットの共通エンジン。作品の内容は持たず、作品データ（window.KIT_GAME）を読んで動く。
-// 依存：validate.js（先に読み込むこと）。
+// 依存：validate.js、save.js（この順で先に読み込むこと）。
 (function (root) {
   'use strict';
   const V = root.KitValidate;
+  const KitSave = root.KitSave;
   const KIT_VERSION = '0.1.0';
   const SPEED_DEFAULT = 38;      // 文字の表示間隔（ミリ秒/字）。0 は即時表示
   const SPEED_MAX = 75;
@@ -40,37 +41,10 @@
   // ----- 保存 -----
   // 保存キーは作品IDごとに分ける。別の作品の保存は、キーが違うので読めない。
   function saveKey(id) { return 'kit:' + id + ':v1'; }
+  // 移行の前に、元の保存をそのまま残す（一度だけ作る）
+  function backupKey(id, version) { return 'kit:' + id + ':v1:backup:' + version; }
 
-  function readSave(id) {
-    try {
-      const p = JSON.parse(localStorage.getItem(saveKey(id)));
-      if (p && p.v === 1 && p.game === id) return p;
-    } catch (e) { /* 壊れた保存は無視する */ }
-    return null;
-  }
-
-  // 作品データの版が違う保存は、作品の aliases で行IDを写してから読む。写せない行は読まない。
-  function savePosition(game, savedAt, savedVersion) {
-    let id = savedAt;
-    if (savedVersion !== game.dataVersion) id = V.resolveAlias(game, id);
-    const byId = V.indexById(game);
-    return byId.has(id) ? id : null;
-  }
-
-  // フラグは作品の定義にある名前と型だけを受け付ける。範囲外・型違いは既定値に戻す。
-  function cleanFlags(game, raw) {
-    const out = {};
-    for (const [name, def] of Object.entries(game.flags || {})) {
-      const v = raw && Object.prototype.hasOwnProperty.call(raw, name) ? raw[name] : undefined;
-      let ok;
-      if (def.type === 'boolean') ok = typeof v === 'boolean';
-      else ok = def.values.includes(v);
-      out[name] = ok ? v : def.default;
-    }
-    return out;
-  }
-
-  function defaultFlags(game) { return cleanFlags(game, {}); }
+  function defaultFlags(game) { return KitSave.cleanFlags(game, {}); }
 
   // ----- 文字の指紋（既読の判定） -----
   function seenKey(line) { return line.id + '#' + V.hashLine(line); }
@@ -88,62 +62,84 @@
         screen: 'title', scene: null, lineId: null, flags: defaultFlags(game),
         seen: new Set(), speed: SPEED_DEFAULT, sound: false, mix: { bgm: 100, amb: 100, se: 100 },
         gallery: {}, slots: [null, null, null], auto: null,
+        saveMode: 'empty', saveNote: '',
         typing: null, timer: null, autoTimer: null, skipTimer: null,
         auto_on: false, skip_on: false, readAtShow: false, shownAt: 0, pressedAt: 0, keyedAt: 0,
         choicesVisible: false, modal: null, rotated: false, previewLog: [], cg: null,
       };
       this.audio = { ctx: null, master: null, bus: {}, buffers: {}, now: { bgm: null, ambience: null }, loops: {} };
       this.log = []; // 試験用：何をしたかの記録（表示には使わない）
+      this.schema = KitSave.flagSchema(game);
     }
 
     // ----- 起動 -----
     boot() {
       this.buildDom();
-      this.loadSettings();
+      this.loadSave();
       this.installInput();
       this.refreshRotation();
       this.showTitle();
       return this;
     }
 
-    get saveId() { return this.g.id; }
+    // 保存を読む。保存の評価（現在の版・移行・移行できない）は KitSave が決め、ここでは適用と書き込みだけ行う。
+    loadSave() {
+      let text = null;
+      try { text = localStorage.getItem(saveKey(this.g.id)); } catch (e) { text = null; }
+      if (text === null) return;
+      let raw;
+      try { raw = JSON.parse(text); } catch (e) { raw = undefined; }
+      const a = KitSave.assess(this.g, raw, text);
+      if (a.mode === 'migrated') {
+        // 移す前に、元の保存をそのまま残す。残せないときは移さない（書き込まない）。
+        const key = backupKey(this.g.id, raw.dataVersion);
+        try {
+          if (localStorage.getItem(key) === null) localStorage.setItem(key, text);
+        } catch (e) {
+          this.applySave(null, a.partial, 'blocked');
+          this.s.saveNote = 'バックアップを残せないため、保存を移しません。';
+          return;
+        }
+      }
+      this.applySave(a.record, a.partial, a.mode, a.reason);
+      if (a.mode === 'migrated') this.notify('保存を新しい版へ移しました。');
+    }
 
-    loadSettings() {
-      const p = readSave(this.g.id);
-      if (!p) return;
-      const st = p.settings || {};
+    applySave(record, partial, mode, reason) {
+      const src = record || partial || {};
+      this.s.saveMode = mode;
+      this.s.saveNote = reason || '';
+      this.s.auto = record && record.auto ? record.auto : null;
+      this.s.slots = record ? record.slots : [null, null, null];
+      this.s.seen = new Set(src.seen || []);
+      this.s.gallery = src.gallery || {};
+      const st = src.settings || {};
       if (typeof st.speed === 'number' && Number.isFinite(st.speed)) this.s.speed = Math.min(SPEED_MAX, Math.max(0, Math.round(st.speed)));
       if (st.sound === true) this.s.sound = true;
       for (const k of ['bgm', 'amb', 'se']) {
         const v = st.mix && st.mix[k];
         if (typeof v === 'number' && Number.isFinite(v)) this.s.mix[k] = Math.min(100, Math.max(0, Math.round(v)));
       }
-      this.s.gallery = (p.gallery && typeof p.gallery === 'object') ? Object.fromEntries(Object.entries(p.gallery).filter(([k, v]) => v === true && this.g.assets && this.g.assets.cgs && Object.prototype.hasOwnProperty.call(this.g.assets.cgs, k))) : {};
-      this.s.slots = Array.isArray(p.slots) ? [0, 1, 2].map((i) => {
-        const x = p.slots[i];
-        return x && typeof x.at === 'string' ? x : null;
-      }) : [null, null, null];
-      this.s.auto = p.auto && typeof p.auto.at === 'string' ? p.auto : null;
-      this.s.seen = new Set(Array.isArray(p.seen) ? p.seen.filter((x) => typeof x === 'string') : []);
-      // 既読は「行ID＋本文の指紋」なので、本文が変わった行は既読にならない。旧IDは aliases で写す。
-      if (p.dataVersion !== this.g.dataVersion) {
-        this.s.seen = new Set([...this.s.seen].map((k) => {
-          const i = k.indexOf('#');
-          const id = V.resolveAlias(this.g, k.slice(0, i));
-          return id + k.slice(i);
-        }));
-      }
     }
 
+    // 保存の内容。移行できない保存（blocked）のときは書かない。
     persist() {
+      if (this.s.saveMode === 'blocked') {
+        this.notify('この保存は移行できないため、変更を保存していません。');
+        return false;
+      }
       const data = {
-        v: 1, game: this.g.id, dataVersion: this.g.dataVersion, kit: KIT_VERSION,
+        v: 1, game: this.g.id, dataVersion: this.g.dataVersion, flagSchema: this.schema, kit: KIT_VERSION,
         auto: this.s.auto, slots: this.s.slots,
         seen: [...this.s.seen].slice(-20000),
         gallery: this.s.gallery,
         settings: { speed: this.s.speed, sound: this.s.sound, mix: this.s.mix },
       };
-      try { localStorage.setItem(saveKey(this.g.id), JSON.stringify(data)); return true; } catch (e) {
+      try {
+        localStorage.setItem(saveKey(this.g.id), JSON.stringify(data));
+        this.s.saveMode = 'current';
+        return true;
+      } catch (e) {
         this.notify('ブラウザに保存できません。');
         return false;
       }
@@ -191,9 +187,10 @@
       // タイトル
       const title = q('title', el('section', 'kit-title'));
       title.append(el('h1', null, this.g.title));
+      q('note', el('p', 'kit-note'));
       q('newBtn', this.button('はじめから', () => this.newGame()));
       q('contBtn', this.button('つづきから', () => this.continueGame()));
-      title.append(this.ui.newBtn, this.ui.contBtn,
+      title.append(this.ui.note, this.ui.newBtn, this.ui.contBtn,
         this.button('セーブ・読込', () => this.openSaves('title')),
         this.button('CG鑑賞', () => this.openCgList()),
         this.button('設定', () => this.openSettings()));
@@ -254,6 +251,8 @@
       this.ui.play.hidden = true;
       this.ui.title.hidden = false;
       this.ui.contBtn.disabled = !this.s.auto;
+      this.ui.note.textContent = this.s.saveNote;
+      this.ui.note.hidden = !this.s.saveNote;
       this.refreshSound();
       this.updateFromState(null);
       this.log.push('title');
@@ -423,11 +422,10 @@
     }
 
     loadPosition(saved, fromAuto) {
-      const id = savePosition(this.g, saved.at, saved.dataVersion || this.g.dataVersion);
-      if (!id) return this.notify('この保存の位置は、現在の作品にありません。');
-      this.s.flags = cleanFlags(this.g, saved.flags);
+      if (!saved || !this.byId.has(saved.at)) return this.notify('この保存の位置は、現在の作品にありません。');
+      this.s.flags = KitSave.cleanFlags(this.g, saved.flags);
       this.closeModal();
-      this.enterPlay(id, { jump: true, instant: true });
+      this.enterPlay(saved.at, { jump: true, instant: true });
       if (fromAuto) this.notify('つづきから再開しました。');
     }
 
@@ -781,6 +779,7 @@
     }
 
     saveSlot(i) {
+      if (this.s.saveMode === 'blocked') return this.notify('この保存は移行できないため、変更を保存していません。');
       if (this.s.slots[i] && !window.confirm('このスロットを上書きしますか？')) return;
       this.s.slots[i] = { at: this.s.lineId, flags: { ...this.s.flags }, dataVersion: this.g.dataVersion, savedAt: Date.now() };
       if (this.persist()) this.notify('保存しました。');

@@ -4,20 +4,9 @@
 const path = require('path');
 const { check, section, summary } = require('../lib/check');
 const { serve } = require('../lib/serve');
+const { launch } = require('../lib/launch');
 
 const ROOT = path.join(__dirname, '..', '..');
-
-async function launch() {
-  let chromium;
-  try { ({ chromium } = require('playwright')); } catch (e) {
-    throw new Error('playwright が見つかりません。NODE_PATH を確認してください。');
-  }
-  const fs = require('fs');
-  const exe = '/opt/pw-browsers/chromium';
-  const opts = { args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'] };
-  if (fs.existsSync(exe)) opts.executablePath = exe;
-  return chromium.launch(opts);
-}
 
 async function openSample(page, base, name) {
   await page.goto(base + 'kit/samples/' + name + '/index.html');
@@ -217,24 +206,21 @@ async function main() {
     await fresh.close();
 
     // ----- 作品データの版が違う保存（試験用に保存を書き込む） -----
-    section('作品データの版が違う保存');
+    section('作品データの版が違う保存（移し方がない）');
     const oldCtx = await browser.newContext({ viewport: { width: 844, height: 390 } });
     const p3 = await oldCtx.newPage();
     p3.on('pageerror', (e) => errors.push(String(e)));
     await openSample(p3, base, 'sample-a');
-    await p3.evaluate(() => {
-      const base = { v: 1, game: 'sample-a', dataVersion: '2026.09-0', kit: '0.1.0', seen: [], gallery: {}, settings: { speed: 0, sound: false, mix: { bgm: 100, amb: 100, se: 100 } } };
-      localStorage.setItem('kit:sample-a:v1', JSON.stringify({ ...base, auto: { at: 'zz-999', flags: {}, dataVersion: '2026.09-0' }, slots: [{ at: 'a-003', flags: {}, dataVersion: '2026.09-0' }, null, null] }));
-    });
+    const oldRaw = JSON.stringify({ v: 1, game: 'sample-a', dataVersion: '2026.09-0', kit: '0.1.0', seen: [], gallery: {}, settings: { speed: 0, sound: false, mix: { bgm: 100, amb: 100, se: 100 } }, auto: { at: 'a-003', flags: {}, dataVersion: '2026.09-0' }, slots: [{ at: 'a-003', flags: {}, dataVersion: '2026.09-0' }, null, null] });
+    await p3.evaluate((raw) => localStorage.setItem('kit:sample-a:v1', raw), oldRaw);
     await p3.reload();
     await p3.waitForFunction(() => window.KIT && window.KIT.s);
     await p3.evaluate(() => { window.KIT.s.speed = 0; });
-    await clickText(p3, 'つづきから');
-    check('現在の作品にない位置の自動セーブは読まない', (await st(p3)).screen === 'title');
-    await clickText(p3, 'セーブ・読込');
-    await p3.getByRole('button', { name: '読込', exact: true }).first().click();
-    await p3.waitForFunction(() => KIT.s.screen === 'play');
-    check('版が違っても、現在の作品にある位置の手動セーブは読める', (await st(p3)).lineId === 'a-003');
+    check('移し方のない版の保存は読まない（つづきから は押せない）', await p3.getByRole('button', { name: 'つづきから', exact: true }).isDisabled());
+    check('移し方のない版の保存は blocked と分かる', (await p3.evaluate(() => KIT.s.saveMode)) === 'blocked');
+    await clickText(p3, 'はじめから');
+    await p3.click('.kit-dialogue');
+    check('移し方のない保存は、進行しても書き換えない', (await p3.evaluate(() => localStorage.getItem('kit:sample-a:v1'))) === oldRaw);
     await oldCtx.close();
     await ctx.close();
 

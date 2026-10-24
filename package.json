@@ -1,0 +1,21 @@
+{
+  "name": "novelgame01-kit-and-tests",
+  "private": true,
+  "description": "ノベルゲーム制作キットとゼルグの試験。配信物ではなく、開発・試験用。",
+  "scripts": {
+    "serve": "node tests/lib/serve.js 8080",
+    "test": "node tests/run.js",
+    "test:unit": "node tests/run.js unit",
+    "test:browser": "node tests/run.js browser",
+    "test:saves": "node tests/run.js saves",
+    "test:zelg": "node tests/run.js zelg",
+    "assets": "node kit/tools/make-assets.js",
+    "release": "node kit/tools/release.js"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

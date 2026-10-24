@@ -24,5 +24,5 @@ window.KIT_GAME = {
     { at: 'x-001', bg: 'bg-plain' },
     { at: 'x-002', se: 'chime' },
   ],
-  aliases: {},
+  migrations: {},
 };

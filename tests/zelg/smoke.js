@@ -7,6 +7,7 @@ const fs = require('fs');
 const { execFileSync } = require('child_process');
 const { check, section, summary } = require('../lib/check');
 const { serve } = require('../lib/serve');
+const { launch } = require('../lib/launch');
 
 const ROOT = path.join(__dirname, '..', '..');
 
@@ -17,11 +18,7 @@ async function main() {
   const errors = [];
   let browser;
   try {
-    const { chromium } = require('playwright');
-    const exe = '/opt/pw-browsers/chromium';
-    const opts = { args: ['--no-sandbox'] };
-    if (fs.existsSync(exe)) opts.executablePath = exe;
-    browser = await chromium.launch(opts);
+    browser = await launch();
     const page = await (await browser.newContext({ viewport: { width: 844, height: 390 } })).newPage();
     page.on('pageerror', (e) => errors.push(String(e)));
     page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });

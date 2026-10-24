@@ -81,6 +81,6 @@ window.KIT_GAME = {
     { at: 'b-003', cg: { id: 'cg-sunset', until: 'b-004' } },
   ],
 
-  // 旧い作品データの行IDを現在の行IDへ写す対応表（行IDを変えたときだけ使う）
-  aliases: {},
+  // 旧い版の保存の移し方（版ごとに書く。行IDが同じなら lines: 'identity' と書く）
+  migrations: {},
 };

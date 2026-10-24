@@ -7,7 +7,7 @@ const path = require('path');
 
 const KIT = path.join(__dirname, '..');
 const ENGINE = path.join(KIT, 'engine');
-const FILES = ['validate.js', 'kit.js', 'kit.css'];
+const FILES = ['validate.js', 'save.js', 'kit.js', 'kit.css'];
 
 const src = fs.readFileSync(path.join(ENGINE, 'kit.js'), 'utf8');
 const m = src.match(/const KIT_VERSION = '([0-9.]+)';/);

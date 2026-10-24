@@ -44,12 +44,6 @@
     return map;
   }
 
-  // 旧い作品データの行IDを、現在の行IDへ写す（aliases は作品側の明示的な対応表）。
-  function resolveAlias(game, id) {
-    const a = game.aliases || {};
-    return Object.prototype.hasOwnProperty.call(a, id) ? a[id] : id;
-  }
-
   function validateGame(game) {
     const errors = [];
     const err = (path, msg) => errors.push(path + ': ' + msg);
@@ -96,11 +90,22 @@
     else if (!byId.has(game.start.line)) err('start', '開始行「' + game.start.line + '」が存在しません');
     else if (byId.get(game.start.line).scene !== game.start.scene) err('start', '開始行は開始場面の中にありません');
 
-    // 旧IDの対応表
-    const aliases = game.aliases || {};
-    for (const [oldId, newId] of Object.entries(aliases)) {
-      if (!byId.has(newId)) err('aliases.' + oldId, '移し先の行ID「' + newId + '」が存在しません');
-      if (byId.has(oldId)) err('aliases.' + oldId, '旧IDが現在の行IDとしても存在します（対応が曖昧です）');
+    // 旧い版の保存の移し方（作品が明示する。行IDが存在するだけでは写さない）
+    if (game.aliases !== undefined) err('aliases', 'aliases は使えません。migrations に書き換えてください');
+    const migrations = game.migrations === undefined ? {} : game.migrations;
+    if (!migrations || typeof migrations !== 'object') err('migrations', 'migrations はオブジェクトにしてください');
+    else for (const [ver, entry] of Object.entries(migrations)) {
+      const at = 'migrations[' + ver + ']';
+      if (ver === game.dataVersion) err(at, '現在の版と同じ版は書けません');
+      if (!entry || typeof entry !== 'object') { err(at, '移行の定義がありません'); continue; }
+      if (entry.lines === 'identity') { /* 行IDは変わっていないと作品が明示している */ }
+      else if (entry.lines && typeof entry.lines === 'object' && !Array.isArray(entry.lines)) {
+        for (const [oldId, newId] of Object.entries(entry.lines)) {
+          if (newId === null) continue; // 写せないと明示した行
+          if (typeof newId !== 'string' || !byId.has(newId)) err(at + '.lines.' + oldId, '移し先の行ID「' + newId + '」が存在しません');
+        }
+      } else err(at + '.lines', '行の対応（lines）は "identity" か、旧ID→新ID の対応表にしてください');
+      if (entry.flags !== undefined && typeof entry.flags !== 'function') err(at + '.flags', 'flags は関数にしてください');
     }
 
     // フラグ
@@ -236,7 +241,7 @@
     return (game.cues || []).filter((c) => c.at === lineId && (c.se !== undefined || c.cg !== undefined));
   }
 
-  const api = { normalizeText, hashLine, flattenLines, indexById, resolveAlias, validateGame, stateAt, oneShotsAt };
+  const api = { normalizeText, hashLine, flattenLines, indexById, validateGame, stateAt, oneShotsAt };
   root.KitValidate = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
