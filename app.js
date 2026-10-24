@@ -275,7 +275,23 @@ function v3Position(node,line){
 // 既読は full-v1 / full-v2 / full-v3 からの移行だけ、行の対応で移す。それ以外の旧版の既読はリセットする（従来の方針）。
 // 既読の移行の最後に、最新の書き換え（V7_REPLACED）の既読を外す。旧版の既読もここを通る。
 const uniqueKeys=list=>list.filter((x,i)=>list.indexOf(x)===i);
+// full-v8〜v19 の既読は、生成した移行表（seen-map.js）で行を対応させる。行ID・話者・本文（空白を除く）が一致した行だけを引き継ぎ、
+// 本文が変わった行や対応の決まらない行は既読にしない。表にない版（full-v7 以前）は従来の経路のまま。
+function migrateSeenByMap(seen,rev){
+ const map=SEEN_MAP[rev],out=new Set();
+ for(const id of seen){
+  if(typeof id!=='string')continue;
+  const i=id.lastIndexOf(':');if(i<0)continue;
+  const node=id.slice(0,i),line=Number(id.slice(i+1));
+  const arr=Object.hasOwn(map,node)?map[node]:null;
+  if(!arr||!Number.isInteger(line)||line<0||line>=arr.length)continue;
+  const t=arr[line];
+  if(t>=0)out.add(node+':'+t);
+ }
+ return [...out];
+}
 function migrateSeen(seen,rev){
+ if(Object.hasOwn(SEEN_MAP,rev))return migrateSeenByMap(seen,rev);
  const at=revAt(rev);
  const keep=(list,filter)=>list.filter(x=>{const i=x.lastIndexOf(':'),node=x.slice(0,i),line=Number(x.slice(i+1));return !own(filter,node).includes(line);});
  let k=migrateSeenBase(seen,rev);
