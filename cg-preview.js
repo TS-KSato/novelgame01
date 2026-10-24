@@ -11,11 +11,13 @@ const startOf=name=>{
  if(t)return {scene:t.scene,line:PAGE_IDS[t.scene].indexOf(t.id)};
  return null;
 };
-let cgSel=CGS[p.get('cg')]?p.get('cg'):names[0];
-let sceneId=STORY[p.get('scene')]?p.get('scene'):startOf(cgSel).scene;
+let cgSel=Object.hasOwn(CGS,p.get('cg'))?p.get('cg'):names[0];
+const cgStart=startOf(cgSel)||{scene:'prologue',line:0};
+const sceneGiven=Object.hasOwn(STORY,p.get('scene'));
+let sceneId=sceneGiven?p.get('scene'):cgStart.scene;
 let lines=STORY[sceneId].lines;
 let line=Number(p.get('line'));
-if(!Number.isInteger(line)||line<0||line>=lines.length)line=p.get('scene')?0:startOf(cgSel).line;
+if(!Number.isInteger(line)||line<0||line>=lines.length)line=sceneGiven?0:cgStart.line;
 let ui=p.get('ui')!=='0';
 for(const n of names){
  const o=document.createElement('option');

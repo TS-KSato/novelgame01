@@ -7,7 +7,7 @@ function galleryRead(){
   const p=JSON.parse(localStorage.getItem(GALLERY_KEY));
   if(p&&p.v===1&&p.unlocked&&typeof p.unlocked==='object'){
    const out={};
-   for(const k of Object.keys(p.unlocked))if(CGS[k]&&p.unlocked[k]===true)out[k]=true;
+   for(const k of Object.keys(p.unlocked))if(Object.hasOwn(CGS,k)&&p.unlocked[k]===true)out[k]=true;
    return out;
   }
  }catch{}
@@ -16,7 +16,7 @@ function galleryRead(){
 let galleryUnlocked=galleryRead();
 function galleryCount(){return Object.keys(galleryUnlocked).length;}
 function galleryUnlock(name){
- if(!CGS[name]||galleryUnlocked[name])return;
+ if(!Object.hasOwn(CGS,name)||Object.hasOwn(galleryUnlocked,name))return;
  galleryUnlocked[name]=true;
  try{localStorage.setItem(GALLERY_KEY,JSON.stringify({v:1,unlocked:galleryUnlocked}));}catch{}
  updateCGCount();
@@ -38,7 +38,7 @@ function galleryScan(p){
  for(const e of p.seen||[]){
   const s=String(e),i=s.lastIndexOf(':');
   const scene=s.slice(0,i),idx=Number(s.slice(i+1));
-  if(STORY[scene]&&Number.isInteger(idx)&&idx>=0&&idx<STORY[scene].lines.length)galleryReachLine(scene,idx);
+  if(Object.hasOwn(STORY,scene)&&Number.isInteger(idx)&&idx>=0&&idx<STORY[scene].lines.length)galleryReachLine(scene,idx);
  }
  for(const id of p.ends||[]){
   const scene=END_SCENE[id];
@@ -46,7 +46,7 @@ function galleryScan(p){
  }
  for(const holder of [p.auto,...(p.slots||[])]){
   const s=holder?.state;
-  if(s&&STORY[s.node]&&Number.isInteger(s.line)&&s.line>=0&&s.line<STORY[s.node].lines.length)galleryReachLine(s.node,s.line);
+  if(s&&Object.hasOwn(STORY,s.node)&&Number.isInteger(s.line)&&s.line>=0&&s.line<STORY[s.node].lines.length)galleryReachLine(s.node,s.line);
  }
 }
 function updateCGCount(){

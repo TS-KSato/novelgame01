@@ -6,6 +6,43 @@ const DREAM_SCENE='prologue';
 const $=s=>document.getElementById(s),KEY='zelg-v1';let persist={seen:[],ends:[],slots:[null,null,null],auto:null,settings:{speed:38,sound:false,mix:{bgm:100,amb:100,se:100}}},st=null,typing=null,autoTimer=null,skipTimer=null,auto=false,skip=false,full='',chars=[],at=0,quietRender=false;
 // 音量設定の基準。旧全体音量の上限 0.5 を共通の基準（種類別 100% = 0.5）にする。旧既定の全体音量は 0.22。読込時の移行で使うため、読込より前に定義する。
 const MIX_REF=.5,MIX_OLD_DEFAULT=.22;
+// 検証の上限と形式（セーブ入力の判定。読込・インポート・移行で共通）。
+// 既読「場面:行」は、現行の最長キー 21 字・場面名は 40 字以下に収める。
+const SEEN_KEY=/^[A-Za-z0-9_-]{1,40}:\d{1,5}$/;
+// 件数：全行を読み切った既読は現行で 1,557 件（旧版は場面の行数が今より多い時期がある）。その余裕を見て 5,000 件まで。
+const SEEN_MAX=5000;
+// 文字の速さ：設定画面のスライダー（0〜75）と同じ範囲。0 は即時表示なので欠損扱いにしない。
+const SPEED_DEFAULT=38,SPEED_MAX=75;
+// フラグ：全履歴の版で同じ形式（真偽 6 種と、plan の選択文字列）。未知のキーは捨て、処理用オブジェクトへ写さない。
+const FLAG_TYPES={honest:'boolean',disclose:'boolean',share:'boolean',council:'boolean',contact:'boolean',physics:'boolean',plan:['break','alone','tia','wait']};
+// 継承されたプロパティ（constructor 等）を値として拾わないための参照。
+const own=(o,k)=>Object.hasOwn(o,k)?o[k]:[];
+// 戻り値が null なら形式違い。配列・null・型違いの既知キーは受け付けない。
+function cleanFlags(f){
+ if(!f||typeof f!=='object'||Array.isArray(f))return null;
+ const out={};
+ for(const k of Object.keys(FLAG_TYPES)){
+  if(!Object.hasOwn(f,k))continue;
+  const t=FLAG_TYPES[k],v=f[k];
+  if(Array.isArray(t)?!t.includes(v):typeof v!==t)return null;
+  out[k]=v;
+ }
+ return out;
+}
+function cleanSpeed(v){return typeof v==='number'&&Number.isFinite(v)?Math.round(Math.min(SPEED_MAX,Math.max(0,v))):SPEED_DEFAULT;}
+// 既読は現行の本文で実在する「場面:行」だけを残す（削除済みの場面・行は捨てる）。移行の後に、現行の行数で判定する。
+function keepCurrentSeen(list){
+ const out=[],seen=new Set();
+ for(const key of list){
+  if(typeof key!=='string')continue;
+  const i=key.lastIndexOf(':');if(i<0)continue;
+  const node=key.slice(0,i),line=Number(key.slice(i+1));
+  if(!Object.hasOwn(STORY,node)||!Number.isInteger(line)||line<0||line>=STORY[node].lines.length)continue;
+  const k=node+':'+line;
+  if(!seen.has(k)){seen.add(k);out.push(k);}
+ }
+ return out;
+}
 try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&Array.isArray(p.seen)&&Array.isArray(p.ends)&&Array.isArray(p.slots))persist={...persist,...p,settings:{...persist.settings,...(p.settings&&typeof p.settings==='object'?p.settings:{})}};}catch{}
 cleanSettings();
 // 表示用の改行。空行は一つにまとめ、句点の後で改行する（閉じ括弧の後で改行）。本文データは変えない。
@@ -35,6 +72,7 @@ function cleanSettings(){
   s.mixVer=3;delete s.volume;write();
  }
  s.sound=s.sound===true;
+ s.speed=cleanSpeed(s.speed);
 }
 // 旧カテゴリ値に係数を掛ける（0〜100 の整数。係数は 1 以下なので上限は超えない）。
 function mixConv(x,f){return Math.round(mixPct(x)*f);}
@@ -42,7 +80,7 @@ function mixPct(x){return typeof x==='number'&&Number.isFinite(x)?Math.round(Mat
 function write(){try{localStorage.setItem(KEY,JSON.stringify(persist));return true;}catch{toast('ブラウザ保存が使えません。セーブコードを書き出してください。');return false;}}
 const clone=x=>JSON.parse(JSON.stringify(x));
 function fresh(){return{contentRevision:OPENING_REV,node:'prologue',line:0,rel:{},fragments:[],flags:{},log:[],started:Date.now()};}
-function valid(s){return s&&s.contentRevision===OPENING_REV&&Object.hasOwn(STORY,s.node)&&Number.isInteger(s.line)&&s.line>=0&&s.line<STORY[s.node].lines.length&&s.rel&&typeof s.rel==='object'&&Object.values(s.rel).every(x=>Number.isFinite(x)&&x>=0&&x<=100)&&s.flags&&typeof s.flags==='object'&&Array.isArray(s.fragments)&&s.fragments.every(f=>Object.hasOwn(FRAGMENTS,f))&&Array.isArray(s.log)&&s.log.length<=2000&&s.log.every(x=>Array.isArray(x)&&x.length===2&&x.every(v=>typeof v==='string'&&v.length<2000));}
+function valid(s){return s&&s.contentRevision===OPENING_REV&&Object.hasOwn(STORY,s.node)&&Number.isInteger(s.line)&&s.line>=0&&s.line<STORY[s.node].lines.length&&s.rel&&typeof s.rel==='object'&&Object.values(s.rel).every(x=>Number.isFinite(x)&&x>=0&&x<=100)&&cleanFlags(s.flags)!==null&&Array.isArray(s.fragments)&&s.fragments.every(f=>Object.hasOwn(FRAGMENTS,f))&&Array.isArray(s.log)&&s.log.length<=2000&&s.log.every(x=>Array.isArray(x)&&x.length===2&&x.every(v=>typeof v==='string'&&v.length<2000));}
 const FULL_MIGRATIONS={"opening-v1": {"prologue": [{"node": "prologue", "line": 0}, {"node": "prologue", "line": 1}, {"node": "prologue", "line": 2}, {"node": "prologue", "line": 3}, {"node": "prologue", "line": 4}, {"node": "prologue", "line": 5}, {"node": "prologue", "line": 6}, {"node": "prologue", "line": 7}, {"node": "prologue", "line": 8}, {"node": "prologue", "line": 9}], "alley": [{"node": "alley", "line": 0}, {"node": "alley", "line": 1}, {"node": "alley", "line": 2}, {"node": "alley", "line": 3}, {"node": "alley", "line": 4}, {"node": "alley", "line": 5}, {"node": "alley", "line": 6}, {"node": "alley", "line": 7}, {"node": "alley", "line": 8}, {"node": "alley", "line": 9}, {"node": "alley", "line": 10}, {"node": "alley", "line": 11}, {"node": "alley", "line": 12}, {"node": "alley", "line": 13}, {"node": "alley", "line": 14}, {"node": "alley", "line": 15}, {"node": "alley", "line": 16}, {"node": "alley", "line": 17}, {"node": "alley", "line": 18}, {"node": "alley", "line": 19}, {"node": "alley", "line": 20}, {"node": "alley", "line": 21}, {"node": "alley", "line": 22}, {"node": "alley", "line": 23}, {"node": "alley", "line": 24}], "rescue": [{"node": "rescue", "line": 0}, {"node": "rescue", "line": 1}, {"node": "rescue", "line": 2}, {"node": "rescue", "line": 3}, {"node": "rescue", "line": 4}, {"node": "rescue", "line": 5}, {"node": "rescue", "line": 6}, {"node": "rescue", "line": 7}, {"node": "rescue", "line": 8}, {"node": "rescue", "line": 9}, {"node": "rescue", "line": 10}, {"node": "rescue", "line": 11}, {"node": "rescue", "line": 12}, {"node": "rescue", "line": 13}, {"node": "rescue", "line": 14}, {"node": "rescue", "line": 15}, {"node": "rescue", "line": 16}, {"node": "rescue", "line": 17}, {"node": "rescue", "line": 18}, {"node": "rescue", "line": 19}, {"node": "rescue", "line": 20}, {"node": "rescue", "line": 21}, {"node": "rescue", "line": 22}, {"node": "rescue", "line": 23}, {"node": "rescue", "line": 24}, {"node": "rescue", "line": 25}, {"node": "rescue", "line": 26}, {"node": "rescue", "line": 27}, {"node": "rescue", "line": 28}, {"node": "rescue", "line": 29}, {"node": "rescue", "line": 30}, {"node": "rescue", "line": 32}, {"node": "rescue", "line": 33}, {"node": "rescue", "line": 34}, {"node": "rescue", "line": 35}, {"node": "rescue", "line": 36}, {"node": "rescue", "line": 37}, {"node": "rescue", "line": 38}, {"node": "rescue", "line": 39}, {"node": "rescue", "line": 40}, {"node": "rescue", "line": 41}, {"node": "rescue", "line": 42}, {"node": "rescue", "line": 43}, {"node": "rescue", "line": 44}, {"node": "rescue", "line": 51}, {"node": "rescue", "line": 52}, {"node": "rescue", "line": 55}, {"node": "rescue", "line": 56}], "brother": [{"node": "brother", "line": 0}, {"node": "brother", "line": 1}, {"node": "brother", "line": 2}, {"node": "brother", "line": 3}, {"node": "brother", "line": 4}, {"node": "brother", "line": 5}, {"node": "brother", "line": 6}, {"node": "brother", "line": 7}, {"node": "brother", "line": 8}, {"node": "brother", "line": 9}, {"node": "brother", "line": 10}, {"node": "brother", "line": 11}, {"node": "brother", "line": 12}, {"node": "brother", "line": 13}, {"node": "brother", "line": 14}, {"node": "brother", "line": 15}, {"node": "brother", "line": 16}, {"node": "brother", "line": 17}, {"node": "brother", "line": 18}, {"node": "brother", "line": 19}, {"node": "brother", "line": 20}, {"node": "brother", "line": 21}, {"node": "brother", "line": 22}, {"node": "brother", "line": 23}, {"node": "brother", "line": 24}, {"node": "brother", "line": 25}, {"node": "brother", "line": 26}, {"node": "brother", "line": 27}, {"node": "brother", "line": 28}, {"node": "brother", "line": 29}, {"node": "brother", "line": 30}, {"node": "brother", "line": 31}, {"node": "brother", "line": 32}, {"node": "brother", "line": 33}], "scholar": [{"node": "scholar", "line": 0}, {"node": "scholar", "line": 1}, {"node": "scholar", "line": 2}, {"node": "scholar", "line": 3}, {"node": "scholar", "line": 4}, {"node": "scholar", "line": 5}, {"node": "scholar", "line": 6}, {"node": "scholar", "line": 7}, {"node": "scholar", "line": 8}, {"node": "scholar", "line": 9}, {"node": "scholar", "line": 10}, {"node": "scholar", "line": 11}, {"node": "scholar", "line": 12}, {"node": "scholar", "line": 13}, {"node": "scholar", "line": 14}, {"node": "scholar", "line": 15}, {"node": "scholar", "line": 16}, {"node": "scholar", "line": 17}, {"node": "scholar", "line": 18}, {"node": "scholar", "line": 19}, {"node": "scholar", "line": 20}, {"node": "scholar", "line": 21}, {"node": "scholar", "line": 22}, {"node": "scholar", "line": 23}, {"node": "scholar", "line": 24}, {"node": "scholar", "line": 25}, {"node": "scholar", "line": 26}, {"node": "scholar", "line": 27}, {"node": "scholar", "line": 28}, {"node": "scholar", "line": 29}, {"node": "scholar", "line": 30}, {"node": "scholar", "line": 31}, {"node": "scholar", "line": 32}, {"node": "scholar", "line": 33}, {"node": "scholar", "line": 34}, {"node": "scholar", "line": 35}, {"node": "scholar", "line": 36}, {"node": "scholar", "line": 37}, {"node": "scholar", "line": 38}, {"node": "scholar", "line": 39}, {"node": "scholar", "line": 40}, {"node": "scholar", "line": 41}, {"node": "scholar", "line": 42}, {"node": "scholar", "line": 43}, {"node": "scholar", "line": 44}, {"node": "scholar", "line": 45}, {"node": "scholar", "line": 46}, {"node": "scholar", "line": 47}, {"node": "scholar", "line": 48}, {"node": "scholar", "line": 49}, {"node": "scholar", "line": 50}, {"node": "scholar", "line": 51}, {"node": "scholar", "line": 52}, {"node": "scholar", "line": 53}, {"node": "scholar", "line": 54}, {"node": "scholar", "line": 55}, {"node": "scholar", "line": 56}, {"node": "scholar", "line": 57}, {"node": "scholar", "line": 58}], "arena": [{"node": "arena", "line": 0}, {"node": "arena", "line": 1}, {"node": "arena", "line": 2}, {"node": "arena", "line": 3}, {"node": "arena", "line": 4}, {"node": "arena", "line": 5}, {"node": "arena", "line": 6}, {"node": "arena", "line": 7}, {"node": "arena", "line": 8}, {"node": "arena", "line": 9}, {"node": "arena", "line": 10}, {"node": "arena", "line": 11}, {"node": "arena", "line": 12}, {"node": "arena", "line": 13}, {"node": "arena", "line": 14}, {"node": "arena", "line": 15}, {"node": "arena", "line": 16}, {"node": "arena", "line": 17}, {"node": "arena", "line": 18}, {"node": "arena", "line": 19}, {"node": "arena", "line": 20}, {"node": "arena", "line": 21}, {"node": "arena", "line": 22}, {"node": "arena", "line": 23}, {"node": "arena", "line": 24}, {"node": "arena", "line": 25}, {"node": "arena", "line": 26}, {"node": "arena", "line": 27}, {"node": "arena", "line": 28}, {"node": "arena", "line": 29}, {"node": "arena", "line": 30}, {"node": "arena", "line": 31}, {"node": "arena", "line": 32}, {"node": "arena", "line": 33}, {"node": "arena", "line": 34}, {"node": "arena", "line": 35}, {"node": "arena", "line": 36}, {"node": "arena", "line": 37}, {"node": "arena", "line": 38}, {"node": "arena", "line": 39}, {"node": "arena", "line": 40}, {"node": "arena", "line": 41}, {"node": "arena", "line": 42}, {"node": "arena", "line": 43}, {"node": "arena", "line": 44}, {"node": "arena", "line": 45}, {"node": "arena", "line": 46}, {"node": "arena", "line": 47}, {"node": "arena", "line": 48}, {"node": "arena", "line": 49}, {"node": "arena", "line": 50}, {"node": "arena", "line": 51}, {"node": "arena", "line": 52}, {"node": "arena", "line": 53}, {"node": "arena", "line": 54}, {"node": "arena", "line": 55}, {"node": "arena", "line": 56}, {"node": "arena", "line": 57}, {"node": "arena", "line": 58}, {"node": "arena", "line": 59}, {"node": "arena", "line": 60}, {"node": "arena", "line": 61}, {"node": "arena", "line": 62}, {"node": "arena", "line": 63}, {"node": "arena", "line": 64}, {"node": "arena", "line": 65}, {"node": "arena", "line": 66}, {"node": "arena", "line": 67}, {"node": "arena", "line": 68}, {"node": "arena", "line": 69}, {"node": "arena", "line": 70}, {"node": "arena", "line": 71}, {"node": "arena", "line": 72}, {"node": "arena", "line": 73}, {"node": "arena", "line": 74}, {"node": "arena", "line": 75}, {"node": "arena", "line": 76}, {"node": "arena", "line": 77}, {"node": "arena", "line": 78}, {"node": "arena", "line": 79}, {"node": "arena", "line": 80}, {"node": "arena", "line": 81}, {"node": "arena", "line": 82}, {"node": "arena", "line": 83}, {"node": "arena", "line": 84}, {"node": "arena", "line": 85}, {"node": "arena", "line": 86}, {"node": "arena", "line": 87}, {"node": "arena", "line": 88}, {"node": "arena", "line": 89}, {"node": "arena", "line": 90}], "court": [{"node": "court", "line": 0}, {"node": "court", "line": 24}, {"node": "court", "line": 33}, {"node": "court", "line": 58}], "border": [{"node": "border", "line": 0}, {"node": "border", "line": 20}, {"node": "border", "line": 38}, {"node": "border", "line": 75}], "races": [{"node": "races", "line": 0}, {"node": "races", "line": 0}, {"node": "races", "line": 0}, {"node": "races", "line": 0}, {"node": "races", "line": 0}], "neia": [{"node": "neia", "line": 0}, {"node": "neia", "line": 0}, {"node": "neia", "line": 0}, {"node": "neia", "line": 0}, {"node": "neia", "line": 0}], "prayer": [{"node": "prayer-inn", "line": 0}, {"node": "prayer-inn", "line": 0}, {"node": "prayer-inn", "line": 0}, {"node": "prayer-inn", "line": 0}, {"node": "prayer-inn", "line": 0}], "confession": [{"node": "confession-road", "line": 0}, {"node": "confession-road", "line": 0}, {"node": "confession-road", "line": 0}, {"node": "confession-road", "line": 0}, {"node": "confession-road", "line": 0}, {"node": "confession-road", "line": 0}], "resolve": [{"node": "resolve", "line": 0}, {"node": "resolve", "line": 0}, {"node": "resolve", "line": 0}, {"node": "resolve", "line": 0}], "agreement": [{"node": "@plan", "line": 0}, {"node": "@plan", "line": 0}, {"node": "@plan", "line": 0}], "alone": [{"node": "alone", "line": 0}, {"node": "alone", "line": 0}], "battle": [{"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}], "lonely": [{"node": "lonely", "line": 0}, {"node": "lonely", "line": 0}, {"node": "lonely", "line": 0}, {"node": "lonely", "line": 0}], "end_harmony": [{"node": "end_harmony", "line": 0}, {"node": "end_harmony", "line": 0}, {"node": "end_harmony", "line": 0}, {"node": "end_harmony", "line": 0}, {"node": "end_harmony", "line": 0}, {"node": "end_harmony", "line": 0}, {"node": "end_harmony", "line": 0}], "end_sacrifice": [{"node": "end_sacrifice", "line": 0}, {"node": "end_sacrifice", "line": 0}, {"node": "end_sacrifice", "line": 0}, {"node": "end_sacrifice", "line": 0}, {"node": "end_sacrifice", "line": 0}, {"node": "end_sacrifice", "line": 0}, {"node": "end_sacrifice", "line": 0}], "end_collapse": [{"node": "end_collapse", "line": 0}, {"node": "end_collapse", "line": 0}, {"node": "end_collapse", "line": 0}, {"node": "end_collapse", "line": 0}, {"node": "end_collapse", "line": 0}], "end_true": [{"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}], "end_god": [{"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}]}, "unmarked-original": {"prologue": [{"node": "prologue", "line": 0}, {"node": "prologue", "line": 3}, {"node": "prologue", "line": 4}, {"node": "prologue", "line": 6}, {"node": "prologue", "line": 8}, {"node": "prologue", "line": 9}], "alley": [{"node": "alley", "line": 0}, {"node": "alley", "line": 2}, {"node": "alley", "line": 24}], "rescue": [{"node": "rescue", "line": 3}, {"node": "rescue", "line": 14}, {"node": "rescue", "line": 15}, {"node": "rescue", "line": 21}, {"node": "rescue", "line": 56}], "brother": [{"node": "brother", "line": 15}, {"node": "brother", "line": 16}, {"node": "brother", "line": 18}, {"node": "brother", "line": 25}, {"node": "brother", "line": 33}], "scholar": [{"node": "scholar", "line": 0}, {"node": "scholar", "line": 4}, {"node": "scholar", "line": 36}, {"node": "scholar", "line": 37}, {"node": "scholar", "line": 58}], "arena": [{"node": "arena", "line": 7}, {"node": "arena", "line": 25}, {"node": "arena", "line": 47}, {"node": "arena", "line": 57}, {"node": "arena", "line": 90}], "court": [{"node": "court", "line": 0}, {"node": "court", "line": 24}, {"node": "court", "line": 33}, {"node": "court", "line": 58}], "border": [{"node": "border", "line": 0}, {"node": "border", "line": 20}, {"node": "border", "line": 38}, {"node": "border", "line": 75}], "races": [{"node": "races", "line": 0}, {"node": "races", "line": 0}, {"node": "races", "line": 0}, {"node": "races", "line": 0}, {"node": "races", "line": 0}], "neia": [{"node": "neia", "line": 0}, {"node": "neia", "line": 0}, {"node": "neia", "line": 0}, {"node": "neia", "line": 0}, {"node": "neia", "line": 0}], "prayer": [{"node": "prayer-inn", "line": 0}, {"node": "prayer-inn", "line": 0}, {"node": "prayer-inn", "line": 0}, {"node": "prayer-inn", "line": 0}, {"node": "prayer-inn", "line": 0}], "confession": [{"node": "confession-road", "line": 0}, {"node": "confession-road", "line": 0}, {"node": "confession-road", "line": 0}, {"node": "confession-road", "line": 0}, {"node": "confession-road", "line": 0}, {"node": "confession-road", "line": 0}], "resolve": [{"node": "resolve", "line": 0}, {"node": "resolve", "line": 0}, {"node": "resolve", "line": 0}, {"node": "resolve", "line": 0}], "agreement": [{"node": "@plan", "line": 0}, {"node": "@plan", "line": 0}, {"node": "@plan", "line": 0}], "alone": [{"node": "alone", "line": 0}, {"node": "alone", "line": 0}], "battle": [{"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}, {"node": "battle-approach", "line": 0}], "lonely": [{"node": "lonely", "line": 0}, {"node": "lonely", "line": 0}, {"node": "lonely", "line": 0}, {"node": "lonely", "line": 0}], "end_harmony": [{"node": "end_harmony", "line": 0}, {"node": "end_harmony", "line": 0}, {"node": "end_harmony", "line": 0}, {"node": "end_harmony", "line": 0}, {"node": "end_harmony", "line": 0}, {"node": "end_harmony", "line": 0}, {"node": "end_harmony", "line": 0}], "end_sacrifice": [{"node": "end_sacrifice", "line": 0}, {"node": "end_sacrifice", "line": 0}, {"node": "end_sacrifice", "line": 0}, {"node": "end_sacrifice", "line": 0}, {"node": "end_sacrifice", "line": 0}, {"node": "end_sacrifice", "line": 0}, {"node": "end_sacrifice", "line": 0}], "end_collapse": [{"node": "end_collapse", "line": 0}, {"node": "end_collapse", "line": 0}, {"node": "end_collapse", "line": 0}, {"node": "end_collapse", "line": 0}, {"node": "end_collapse", "line": 0}], "end_true": [{"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}, {"node": "end_true", "line": 0}], "end_god": [{"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}, {"node": "end_god", "line": 0}]}};
 const V1_TO_V2={"scholar":[0, 1, 2, 3, 4, 8, 6, 7, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70]};
 // full-v2 → full-v3 の行の対応（旧行の添字 → 新しい行の添字）。
@@ -166,7 +204,7 @@ function mapV10SeenKey(k){
 const OLD_LINE_LIMIT={lonely:39,arena:91};
 function v8Position(node,line){
  if(!Object.hasOwn(STORY,node))return null;
- const len=Math.max(STORY[node].lines.length,OLD_LINE_LIMIT[node]||0);
+ const len=Math.max(STORY[node].lines.length,Object.hasOwn(OLD_LINE_LIMIT,node)?OLD_LINE_LIMIT[node]:0);
  return Number.isInteger(line)&&line>=0&&line<len?line:null;
 }
 function migrateSeenV7(seen){
@@ -192,7 +230,7 @@ function migrateSeenV6(seen){
   if(typeof id!=='string')continue;
   const i=id.lastIndexOf(':');const node=id.slice(0,i),line=Number(id.slice(i+1));
   const l7=v7Position(node,line);
-  if(l7===null||(V6_REPLACED[node]||[]).includes(l7))continue;
+  if(l7===null||own(V6_REPLACED,node).includes(l7))continue;
   const key=node+':'+l7;if(!out.includes(key))out.push(key);
  }
  return out;
@@ -205,7 +243,7 @@ function migrateSeenV5(seen){
   const i=id.lastIndexOf(':');const node=id.slice(0,i),line=Number(id.slice(i+1));
   if(!Object.hasOwn(STORY,node)||!Number.isInteger(line)||line<0||line>=STORY[node].lines.length)continue;
   const l6=v6Position(node,line);
-  if(l6===null||(V5_REPLACED[node]||[]).includes(l6)||(V6_REPLACED[node]||[]).includes(l6))continue;
+  if(l6===null||own(V5_REPLACED,node).includes(l6)||own(V6_REPLACED,node).includes(l6))continue;
   const key=node+':'+l6;if(!out.includes(key))out.push(key);
  }
  return out;
@@ -219,9 +257,9 @@ function migrateSeenV4(seen){
   if(!Object.hasOwn(STORY,node)||!Number.isInteger(line)||line<0||line>=STORY[node].lines.length)continue;
   const l5=v5Position(node,line);
   if(l5===null)continue;
-  if((V4_REPLACED[node]||[]).includes(l5))continue;
+  if(own(V4_REPLACED,node).includes(l5))continue;
   const l6=v6Position(node,l5);
-  if(l6===null||(V5_REPLACED[node]||[]).includes(l6)||(V6_REPLACED[node]||[]).includes(l6))continue;
+  if(l6===null||own(V5_REPLACED,node).includes(l6)||own(V6_REPLACED,node).includes(l6))continue;
   const key=node+':'+l6;if(!out.includes(key))out.push(key);
  }
  return out;
@@ -239,7 +277,7 @@ function v3Position(node,line){
 const uniqueKeys=list=>list.filter((x,i)=>list.indexOf(x)===i);
 function migrateSeen(seen,rev){
  const at=revAt(rev);
- const keep=(list,filter)=>list.filter(x=>{const i=x.lastIndexOf(':'),node=x.slice(0,i),line=Number(x.slice(i+1));return !(filter[node]||[]).includes(line);});
+ const keep=(list,filter)=>list.filter(x=>{const i=x.lastIndexOf(':'),node=x.slice(0,i),line=Number(x.slice(i+1));return !own(filter,node).includes(line);});
  let k=migrateSeenBase(seen,rev);
  if(at<0){k=keep(k,V7_REPLACED);k=keep(k,V8_REPLACED);k=keep(k,V9_REPLACED);}
  if(at<1){k=uniqueKeys(k.map(mapV10SeenKey));k=keep(k,V10_REPLACED);}
@@ -272,23 +310,23 @@ function migrateSeenBase(seen,rev){
   if(rev==='full-v3'){if(Number.isInteger(line)&&line>=0&&line<STORY[node].lines.length)l3=line;}
   else{
    let l2=line;
-   if(rev==='full-v1'){const a=V1_TO_V2[node];if(a){if(!Number.isInteger(line)||line<0||line>=a.length)continue;l2=a[line];}}
-   if((V2_REPLACED[node]||[]).includes(l2))continue;
+   if(rev==='full-v1'){const a=Object.hasOwn(V1_TO_V2,node)?V1_TO_V2[node]:null;if(a){if(!Number.isInteger(line)||line<0||line>=a.length)continue;l2=a[line];}}
+   if(own(V2_REPLACED,node).includes(l2))continue;
    l3=v3Position(node,l2);
   }
   if(l3===null)continue;
-  if((V3_REPLACED[node]||[]).includes(l3))continue;
+  if(own(V3_REPLACED,node).includes(l3))continue;
   const l5=v5Position(node,l3);
-  if(l5===null||(V4_REPLACED[node]||[]).includes(l5))continue;
+  if(l5===null||own(V4_REPLACED,node).includes(l5))continue;
   const l6=v6Position(node,l5);
-  if(l6===null||(V5_REPLACED[node]||[]).includes(l6)||(V6_REPLACED[node]||[]).includes(l6))continue;
+  if(l6===null||own(V5_REPLACED,node).includes(l6)||own(V6_REPLACED,node).includes(l6))continue;
   const key=node+':'+l6;if(!out.includes(key))out.push(key);
  }
  return out;
 }
 function migrateState(s){
  if(!s||typeof s!=='object'||typeof s.node!=='string')return{ok:false,reason:'セーブの中身が読めません'};
- if(s.contentRevision===OPENING_REV)return valid(s)?{ok:true,state:s}:{ok:false,reason:'本文の位置が範囲外です'};
+ if(s.contentRevision===OPENING_REV)return valid(s)?{ok:true,state:s}:{ok:false,reason:cleanFlags(s.flags)===null?'進行の記録（フラグ）が読めません。':'本文の位置が範囲外です'};
  if(['full-v11','full-v12','full-v13','full-v14','full-v15','full-v16','full-v17','full-v18','full-v19'].includes(s.contentRevision)){const t=toCurrent({...clone(s)},s.contentRevision);return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
  if(s.contentRevision==='full-v10'||s.contentRevision==='full-v9'||s.contentRevision==='full-v8'||s.contentRevision==='full-v7'){const t=toCurrent({...clone(s)},s.contentRevision);return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
  if(s.contentRevision==='full-v6'){const t=toCurrent({...clone(s)},'full-v6');return valid(t)?{ok:true,state:t}:{ok:false,reason:'本文の位置が範囲外です'};}
@@ -303,11 +341,11 @@ function migrateState(s){
   else{
    let n1=s.node,l1=s.line;
    if(rev!=='full-v1'){
-    const arr=FULL_MIGRATIONS[rev]?.[s.node];
+    const arr=Object.hasOwn(FULL_MIGRATIONS,rev)&&Object.hasOwn(FULL_MIGRATIONS[rev],s.node)?FULL_MIGRATIONS[rev][s.node]:null;
     if(!arr||!Number.isInteger(s.line)||s.line<0||s.line>=arr.length)return{ok:false,reason:'この本文版の位置を移せません'};
     const pos=arr[s.line];n1=resolveStoryTarget(pos.node,s);l1=pos.line;
    }
-   const a=V1_TO_V2[n1];
+   const a=Object.hasOwn(V1_TO_V2,n1)?V1_TO_V2[n1]:null;
    if(a){if(!Number.isInteger(l1)||l1<0||l1>=a.length)return{ok:false,reason:'この本文版の位置を移せません'};v2line=a[l1];}
    else{if(!Object.hasOwn(STORY,n1)||!Number.isInteger(l1)||l1<0||l1>=STORY[n1].lines.length)return{ok:false,reason:'この本文版の位置を移せません'};v2line=l1;}
    v2node=n1;
@@ -326,20 +364,22 @@ function migrateState(s){
 function saveReason(s){if(!s)return'空のセーブ';if(valid(s))return null;return s.contentRevision!==undefined&&s.contentRevision!==OPENING_REV?'未知の本文版のセーブです':'旧版の位置を移せないセーブです';}
 function migrateImport(p){
  if(!p||!p.state)return{ok:false,reason:'有効なセーブコードを入力してください。'};
+ if(!Array.isArray(p.seen)||p.seen.length>SEEN_MAX||!p.seen.every(x=>typeof x==='string'&&SEEN_KEY.test(x)))return{ok:false,reason:'既読の記録が読めません。'};
  const old=p.state.contentRevision!==OPENING_REV;
  const m=migrateState(p.state);
  if(!m.ok)return{ok:false,reason:m.reason};
- return{ok:true,state:m.state,seen:old?migrateSeen(p.seen,p.state.contentRevision):p.seen};
+ return{ok:true,state:m.state,seen:keepCurrentSeen(old?migrateSeen(p.seen,p.state.contentRevision):p.seen)};
 }
 // 起動時に一度だけ：旧データを専用キーへバックアップ（既にあれば上書きしない）してから、既読と各セーブを移す。データは削除しない。
 function migrateStorage(){
+ if(persist.seenRev===OPENING_REV)persist.seen=keepCurrentSeen(persist.seen);
  let raw=null;try{raw=localStorage.getItem(KEY);}catch{}
  const seenPending=persist.seenRev!==OPENING_REV;
  const pendingState=s=>s&&typeof s==='object'&&s.contentRevision!==OPENING_REV;
  const slotsPending=persist.slots.some(x=>pendingState(x?.state));
  if(!seenPending&&!pendingState(persist.auto?.state)&&!slotsPending)return;
  if(raw!==null){try{if(localStorage.getItem(OPENING_BACKUP_KEY)===null)localStorage.setItem(OPENING_BACKUP_KEY,raw);}catch{toast('バックアップを保存できないため、セーブの移行を中止しました。');return;}}
- if(seenPending){persist.seen=migrateSeen(persist.seen,persist.seenRev);persist.seenRev=OPENING_REV;}
+ if(seenPending){persist.seen=keepCurrentSeen(migrateSeen(persist.seen.filter(x=>typeof x==='string'),persist.seenRev));persist.seenRev=OPENING_REV;}
  const failed=[];
  const move=(holder)=>{if(pendingState(holder.state)){const m=migrateState(holder.state);if(m.ok)holder.state=m.state;else failed.push(m.reason);}};
  if(persist.auto)move(persist.auto);
@@ -351,7 +391,7 @@ function archiveState(){if(!st)return null;return{state:clone(st),time:Date.now(
 function checkpoint(){persist.auto=archiveState();write();}
 function stopTimers(){clearInterval(typing);typing=null;clearTimeout(autoTimer);clearInterval(skipTimer);skipTimer=null;auto=false;skip=false;$('auto').classList.remove('active');$('skip').classList.remove('active');;AudioCue.settle();}
 function title(){stopTimers();AudioCue.stopEnv();AudioCue.onTitle();applyCG(null);document.body.classList.remove('dream-on');applyBackground(document.querySelector('.scenery'),null);$('game').hidden=true;$('ending').hidden=true;$('title').hidden=false;document.body.classList.remove('playing');$('continue').disabled=!persist.auto?.state;$('end-count').textContent=persist.ends.length+' / 6';}
-function start(s,o){stopTimers();quietRender=!!o?.quiet;st=clone(s);$('title').hidden=true;$('ending').hidden=true;$('game').hidden=false;document.body.classList.add('playing');render();}
+function start(s,o){stopTimers();quietRender=!!o?.quiet;st=clone(s);st.flags=cleanFlags(st.flags);$('title').hidden=true;$('ending').hidden=true;$('game').hidden=false;document.body.classList.add('playing');render();}
 // CG鑑賞を開く間は本文の進行を止める。閉じたときに、同じ行・途中まで表示した文・オート/スキップの状態へ戻す。
 function pauseForGallery(){const s={auto,skip,partial:at<chars.length};stopTimers();return s;}
 function resumeAfterGallery(s){
@@ -388,7 +428,7 @@ $('speed').oninput=e=>{persist.settings.speed=75-Number(e.target.value);write();
 for(const k of ['amb','se']){const id=k==='amb'?'mixAmb':'mixSe';$(id).onchange=()=>AudioCue.preview(k);}
 slotUI();
 $('export').onclick=()=>{const state=st||persist.auto?.state;if(!valid(state)){toast('まず物語をはじめてください');return;}const data={v:1,state,ends:persist.ends,seen:persist.seen};$('code').value='ZELG1.'+encodeSaveJSON(data);$('code').select();toast('コードを選択しました。コピーして保管してください。');};
-$('import').onclick=()=>{try{const code=$('code').value.trim();if(!code.startsWith('ZELG1.')||code.length>1000000)throw Error();const p=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(code.slice(6)),c=>c.charCodeAt(0))));if(p.v!==1)throw Error();const mig=migrateImport(p);if(!mig.ok){toast(mig.reason);return;}p.state=mig.state;p.seen=mig.seen;if(!valid(p.state)||!Array.isArray(p.ends)||!p.ends.every(e=>Object.hasOwn(ENDINGS,e))||!Array.isArray(p.seen)||!p.seen.every(x=>typeof x==='string'&&x.length<100))throw Error();persist.ends=[...new Set([...persist.ends,...p.ends])];persist.seen=[...new Set([...persist.seen,...p.seen])];$('modal').close();start(p.state,{quiet:true});toast('セーブコードを復元しました');}catch{toast('有効なセーブコードを入力してください。');}};}
+$('import').onclick=()=>{try{const code=$('code').value.trim();if(!code.startsWith('ZELG1.')||code.length>1000000)throw Error();const p=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(code.slice(6)),c=>c.charCodeAt(0))));if(p.v!==1)throw Error();const mig=migrateImport(p);if(!mig.ok){toast(mig.reason);return;}p.state=mig.state;p.seen=mig.seen;if(!valid(p.state)||!Array.isArray(p.ends)||!p.ends.every(e=>Object.hasOwn(ENDINGS,e))||!Array.isArray(p.seen))throw Error();persist.ends=[...new Set([...persist.ends,...p.ends])];persist.seen=[...new Set([...persist.seen,...p.seen])];$('modal').close();start(p.state,{quiet:true});toast('セーブコードを復元しました');}catch{toast('有効なセーブコードを入力してください。');}};}
 function slotUI(){$('slots').innerHTML='';persist.slots.slice(0,3).forEach((slot,i)=>{const row=document.createElement('div');row.className='row';const label=document.createElement('span');label.textContent='0'+(i+1)+'　'+(valid(slot?.state)?chapterTitle(slot.state.node)+' · '+new Date(slot.time).toLocaleString('ja-JP'):(slot?.state?'読めないセーブ：'+saveReason(slot.state):'空のスロット'));const buttons=document.createElement('span'),save=document.createElement('button'),load=document.createElement('button');save.className=load.className='btn';save.textContent='保存';load.textContent='読込';save.disabled=!st;load.disabled=!valid(slot?.state);save.onclick=()=>{if(slot&&!confirm('このスロットを上書きしますか？'))return;persist.slots[i]=archiveState();write();slotUI();toast('保存しました');};load.onclick=()=>{if(st&&!confirm('現在の進行を、このセーブの状態へ戻しますか？'))return;$('modal').close();start(slot.state,{quiet:true});};buttons.append(save,load);row.append(label,buttons);$('slots').append(row);});}
 const SND_ON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 const SND_OFF='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
