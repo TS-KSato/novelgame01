@@ -16,7 +16,6 @@ function updatePortraits(node,page,speaker){
  items.forEach(i=>preloadPortrait(i.char,i.expr));
  renderPortraits(host,items,speaker);
  const game=document.getElementById('game');
- game.classList.toggle('has-portrait',items.length>0);
  game.classList.remove('in-choice','choice-left');
 }
 // 選択肢の表示中は、立ち絵を左右の端へ寄せて選択肢の下に顔が隠れないようにする（縮尺・接地位置は変えない）。
